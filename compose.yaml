@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: turnos_db
+      POSTGRES_USER: turnos_user
+      POSTGRES_PASSWORD: ${TURNOS_DB_PASSWORD:?Definir TURNOS_DB_PASSWORD en .env o en el entorno}
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - turnos_postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  turnos_postgres_data:
