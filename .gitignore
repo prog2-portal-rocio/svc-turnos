@@ -1,0 +1,15 @@
+# IntelliJ IDEA
+.idea/
+*.iml
+
+# Maven
+target/
+
+# Archivos de entorno y secretos
+.env
+.env.*
+!.env.example
+
+# Archivos temporales
+*.log
+.DS_Store
