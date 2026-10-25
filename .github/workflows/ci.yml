@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - testing
+      - 'feature/**'
+  pull_request:
+    branches:
+      - main
+      - develop
+      - testing
+      - 'feature/**'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: turnos_db
+          POSTGRES_USER: turnos_user
+          POSTGRES_PASSWORD: ci_test_password
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U turnos_user -d turnos_db"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      TURNOS_DB_PASSWORD: ci_test_password
+
+    steps:
+      - name: Obtener el codigo
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Configurar Java 25
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Compilar y ejecutar pruebas
+        run: ./mvnw --batch-mode clean verify
+
+      - name: Analizar calidad con SonarQube Cloud
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: >
+          ./mvnw --batch-mode
+          org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
+          -Dsonar.host.url=https://sonarcloud.io
