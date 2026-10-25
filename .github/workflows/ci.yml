@@ -42,6 +42,8 @@ jobs:
     steps:
       - name: Obtener el codigo
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Configurar Java 25
         uses: actions/setup-java@v6
@@ -52,3 +54,11 @@ jobs:
 
       - name: Compilar y ejecutar pruebas
         run: ./mvnw --batch-mode clean verify
+
+      - name: Analizar calidad con SonarQube Cloud
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: >
+          ./mvnw --batch-mode
+          org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
+          -Dsonar.host.url=https://sonarcloud.io
