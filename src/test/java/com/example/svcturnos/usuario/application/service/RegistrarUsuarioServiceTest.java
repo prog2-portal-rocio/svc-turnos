@@ -5,6 +5,7 @@ import com.example.svcturnos.usuario.domain.ports.in.RegistrarUsuarioUseCase.Dat
 import com.example.svcturnos.usuario.domain.ports.out.PasswordHasherPort;
 import com.example.svcturnos.usuario.domain.ports.out.UsuarioPersistencePort;
 import org.junit.jupiter.api.Test;
+import com.example.svcturnos.usuario.application.exception.UsuarioDuplicadoException;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -56,7 +57,7 @@ class RegistrarUsuarioServiceTest {
         when(usuarios.existeLogin("rocio")).thenReturn(true);
 
         assertThrows(
-                IllegalArgumentException.class,
+                UsuarioDuplicadoException.class,
                 () -> service.registrar(datosValidos())
         );
 
@@ -70,11 +71,51 @@ class RegistrarUsuarioServiceTest {
                 .thenReturn(true);
 
         assertThrows(
-                IllegalArgumentException.class,
+                UsuarioDuplicadoException.class,
                 () -> service.registrar(datosValidos())
         );
 
         verify(usuarios, never()).guardar(any());
         verifyNoInteractions(hasher);
+    }
+
+    @Test
+    void debeRechazarContrasenaDemasiadoCorta() {
+        DatosRegistro datos = new DatosRegistro(
+                "rocio",
+                "abc",
+                "Rocio",
+                "Portal",
+                "rocio@example.com",
+                null,
+                "es"
+        );
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> service.registrar(datos)
+        );
+
+        verify(usuarios, never()).guardar(any());
+    }
+
+    @Test
+    void debeRechazarEmailConFormatoInvalido() {
+        DatosRegistro datos = new DatosRegistro(
+                "rocio",
+                "claveSegura123",
+                "Rocio",
+                "Portal",
+                "correo-invalido",
+                null,
+                "es"
+        );
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> service.registrar(datos)
+        );
+
+        verify(usuarios, never()).guardar(any());
     }
 }

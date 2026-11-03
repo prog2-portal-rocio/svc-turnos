@@ -6,6 +6,7 @@ import com.example.svcturnos.usuario.domain.ports.out.PasswordHasherPort;
 import com.example.svcturnos.usuario.domain.ports.out.UsuarioPersistencePort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.example.svcturnos.usuario.application.exception.UsuarioDuplicadoException;
 
 import java.util.Locale;
 import java.util.Objects;
@@ -40,12 +41,28 @@ public class RegistrarUsuarioService implements RegistrarUsuarioUseCase {
         String login = datos.login().trim().toLowerCase(Locale.ROOT);
         String email = datos.email().trim().toLowerCase(Locale.ROOT);
 
+        if (datos.password().length() < 4 || datos.password().length() > 100) {
+            throw new IllegalArgumentException(
+                    "La contraseña debe tener entre 4 y 100 caracteres"
+            );
+        }
+
+        if (!email.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")) {
+            throw new IllegalArgumentException(
+                    "El formato del email no es válido"
+            );
+        }
+
         if (usuarioPersistencePort.existeLogin(login)) {
-            throw new IllegalArgumentException("El login ya está registrado");
+            throw new UsuarioDuplicadoException(
+                    "El login ya está registrado"
+            );
         }
 
         if (usuarioPersistencePort.existeEmail(email)) {
-            throw new IllegalArgumentException("El email ya está registrado");
+            throw new UsuarioDuplicadoException(
+                    "El email ya está registrado"
+            );
         }
 
         String passwordHash = passwordHasherPort.hash(datos.password());
