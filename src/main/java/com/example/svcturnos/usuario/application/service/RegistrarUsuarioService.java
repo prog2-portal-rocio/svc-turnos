@@ -47,10 +47,8 @@ public class RegistrarUsuarioService implements RegistrarUsuarioUseCase {
             );
         }
 
-        if (!email.matches("^[^\\s@]++@[^\\s@.]++(?:\\.[^\\s@.]++)+$")) {
-            throw new IllegalArgumentException(
-                    "El formato del email no es válido"
-            );
+        if (!esEmailValido(email)) {
+            throw new IllegalArgumentException("Email inválido");
         }
 
         if (usuarioPersistencePort.existeLogin(login)) {
@@ -84,5 +82,42 @@ public class RegistrarUsuarioService implements RegistrarUsuarioUseCase {
         );
 
         return usuarioPersistencePort.guardar(usuario);
+    }
+
+    private boolean esEmailValido(String email) {
+        if (email == null || email.length() > 254) {
+            return false;
+        }
+
+        int arroba = email.indexOf('@');
+
+        if (arroba <= 0 || arroba != email.lastIndexOf('@')) {
+            return false;
+        }
+
+        String dominio = email.substring(arroba + 1);
+
+        if (dominio.startsWith(".")
+                || dominio.endsWith(".")
+                || dominio.contains("..")) {
+            return false;
+        }
+
+        int ultimoPunto = dominio.lastIndexOf('.');
+
+        if (ultimoPunto <= 0 || ultimoPunto == dominio.length() - 1) {
+            return false;
+        }
+
+        for (int i = 0; i < email.length(); i++) {
+            char caracter = email.charAt(i);
+
+            if (Character.isWhitespace(caracter)
+                    || Character.isISOControl(caracter)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
