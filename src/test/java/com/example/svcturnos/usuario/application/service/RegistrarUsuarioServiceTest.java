@@ -56,9 +56,11 @@ class RegistrarUsuarioServiceTest {
     void debeRechazarLoginDuplicado() {
         when(usuarios.existeLogin("rocio")).thenReturn(true);
 
+        DatosRegistro datos = datosValidos();
+
         assertThrows(
                 UsuarioDuplicadoException.class,
-                () -> service.registrar(datosValidos())
+                () -> service.registrar(datos)
         );
 
         verify(usuarios, never()).guardar(any());
@@ -70,9 +72,11 @@ class RegistrarUsuarioServiceTest {
         when(usuarios.existeEmail("rocio@example.com"))
                 .thenReturn(true);
 
+        DatosRegistro datos = datosValidos();
+
         assertThrows(
                 UsuarioDuplicadoException.class,
-                () -> service.registrar(datosValidos())
+                () -> service.registrar(datos)
         );
 
         verify(usuarios, never()).guardar(any());

@@ -47,7 +47,7 @@ public class RegistrarUsuarioService implements RegistrarUsuarioUseCase {
             );
         }
 
-        if (!email.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")) {
+        if (!email.matches("^[^\\s@]++@[^\\s@.]++(?:\\.[^\\s@.]++)+$")) {
             throw new IllegalArgumentException(
                     "El formato del email no es válido"
             );
