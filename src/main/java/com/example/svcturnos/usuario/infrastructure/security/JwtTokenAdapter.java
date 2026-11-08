@@ -2,7 +2,7 @@ package com.example.svcturnos.usuario.infrastructure.security;
 
 import com.example.svcturnos.usuario.domain.model.Usuario;
 import com.example.svcturnos.usuario.domain.ports.out.TokenPort;
-import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.security.oauth2.jwt.*;
 import org.springframework.stereotype.Component;
 
@@ -40,7 +40,7 @@ public class JwtTokenAdapter implements TokenPort {
                 .build();
 
         JwsHeader header = JwsHeader
-                .with(MacAlgorithm.HS256)
+                .with(SignatureAlgorithm.RS256)
                 .build();
 
         return encoder.encode(
