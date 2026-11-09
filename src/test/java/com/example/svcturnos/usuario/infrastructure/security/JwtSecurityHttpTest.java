@@ -4,6 +4,8 @@ import com.example.svcturnos.usuario.domain.model.Usuario;
 import com.example.svcturnos.usuario.domain.ports.in.AutenticarUsuarioUseCase;
 import com.example.svcturnos.usuario.infrastructure.web.controller.AutenticacionController;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
@@ -17,6 +19,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import tools.jackson.databind.json.JsonMapper;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -93,23 +97,37 @@ class JwtSecurityHttpTest {
                 .andExpect(status().isUnauthorized());
     }
 
-    @Test
-    void loginEmiteRs256YElTokenAutorizaUnaPeticionHttp() throws Exception {
+    @ParameterizedTest
+    @ValueSource(strings = {
+            """
+            {"username":"rocio", "password":"claveSegura123"}
+            """,
+            """
+            {"username":"rocio", "password":"claveSegura123",
+             "scope":"catalogo:sync:read catalogo:write", "aud":["otra-api"],
+             "iss":"otro-emisor", "sub":"999", "roles":["ADMIN"]}
+            """
+    })
+    void loginEmiteRs256ConPermisosDelBackendYElTokenAutorizaUnaPeticionHttp(String solicitud) throws Exception {
         Usuario usuario = new Usuario(1L, "rocio", "hash-de-prueba", "Rocio", "Portal",
                 "rocio@example.com", null, "es", true);
         when(autenticarUsuario.autenticar("rocio", "claveSegura123")).thenReturn(usuario);
 
         String respuesta = mockMvc.perform(post("/api/authenticate")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"username":"rocio", "password":"claveSegura123"}
-                                """))
+                        .content(solicitud))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.passwordHash").doesNotExist())
                 .andReturn().getResponse().getContentAsString();
         String token = JsonMapper.builder().build().readTree(respuesta).path("id_token").asString();
 
-        assertEquals("RS256", decoder.decode(token).getHeaders().get("alg"));
+        var jwt = decoder.decode(token);
+        assertEquals("RS256", jwt.getHeaders().get("alg"));
+        assertEquals("svc-turnos", jwt.getClaimAsString("iss"));
+        assertEquals("1", jwt.getSubject());
+        assertEquals(List.of("svc-turnos-api", "svc-catalogo-api"), jwt.getAudience());
+        assertEquals("catalogo:read", jwt.getClaimAsString("scope"));
+        assertFalse(jwt.getClaims().containsKey("roles"));
         mockMvc.perform(get("/api/seguro").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(content().string("1"));
