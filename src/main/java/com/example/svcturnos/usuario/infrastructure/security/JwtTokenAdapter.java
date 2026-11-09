@@ -8,7 +8,6 @@ import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.List;
 import java.util.Objects;
 
 @Component
@@ -27,16 +26,21 @@ public class JwtTokenAdapter implements TokenPort {
                 usuario.id(),
                 "El usuario debe estar guardado"
         );
+        if (!usuario.activated()) {
+            throw new IllegalArgumentException("El usuario debe estar activo para emitir un token");
+        }
 
         Instant ahora = Instant.now();
 
         JwtClaimsSet claims = JwtClaimsSet.builder()
-                .issuer("svc-turnos")
+                .issuer(JwtContract.ISSUER)
                 .subject(usuario.id().toString())
-                .audience(List.of("svc-turnos-api"))
+                .audience(JwtContract.USER_AUDIENCES)
                 .issuedAt(ahora)
                 .expiresAt(ahora.plus(2, ChronoUnit.HOURS))
                 .claim("login", usuario.login())
+                // Politica fija para usuarios activos; los permisos no provienen del cliente.
+                .claim("scope", JwtContract.USER_SCOPE)
                 .build();
 
         JwsHeader header = JwsHeader

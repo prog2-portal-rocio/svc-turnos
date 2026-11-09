@@ -21,9 +21,6 @@ import java.util.Objects;
 @Configuration(proxyBeanMethods = false)
 public class JwtConfig {
 
-    private static final String ISSUER = "svc-turnos";
-    private static final String AUDIENCE = "svc-turnos-api";
-
     @Bean
     public KeyPair jwtKeyPair(
             @Value("${turnos.jwt.private-key-location}") Resource privateKeyResource,
@@ -70,8 +67,8 @@ public class JwtConfig {
                 .signatureAlgorithm(SignatureAlgorithm.RS256)
                 .build();
         decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
-                JwtValidators.createDefaultWithIssuer(ISSUER),
-                new JwtAudienceValidator(AUDIENCE),
+                JwtValidators.createDefaultWithIssuer(JwtContract.ISSUER),
+                new JwtAudienceValidator(JwtContract.TURNOS_AUDIENCE),
                 new JwtClaimValidator<String>(JwtClaimNames.SUB,
                         subject -> subject != null && !subject.isBlank()),
                 new JwtClaimValidator<Instant>(JwtClaimNames.EXP, Objects::nonNull)
@@ -83,8 +80,8 @@ public class JwtConfig {
         // Comprobar el par con Spring, sin persistir ni registrar el JWT de prueba.
         Instant ahora = Instant.now();
         JwtClaimsSet claims = JwtClaimsSet.builder()
-                .issuer(ISSUER)
-                .audience(List.of(AUDIENCE))
+                .issuer(JwtContract.ISSUER)
+                .audience(List.of(JwtContract.TURNOS_AUDIENCE))
                 .subject("key-validation")
                 .issuedAt(ahora)
                 .expiresAt(ahora.plusSeconds(60))
