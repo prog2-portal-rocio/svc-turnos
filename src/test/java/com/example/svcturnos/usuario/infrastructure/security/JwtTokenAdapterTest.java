@@ -1,117 +1,115 @@
 package com.example.svcturnos.usuario.infrastructure.security;
 
 import com.example.svcturnos.usuario.domain.model.Usuario;
+import com.nimbusds.jose.JOSEException;
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.JWSHeader;
+import com.nimbusds.jose.crypto.MACSigner;
+import com.nimbusds.jose.crypto.RSASSASigner;
+import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.SignedJWT;
 import org.junit.jupiter.api.Test;
-import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.security.oauth2.jwt.*;
 
-import javax.crypto.KeyGenerator;
-import javax.crypto.SecretKey;
-import java.security.NoSuchAlgorithmException;
+import java.nio.charset.StandardCharsets;
+import java.security.KeyPair;
+import java.security.SecureRandom;
+import java.time.Duration;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
+import java.util.Base64;
+import java.util.Date;
 import java.util.List;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class JwtTokenAdapterTest {
 
+    private static final KeyPair CLAVES = JwtTestContextInitializer.claves();
     private final JwtConfig config = new JwtConfig();
-    private final SecretKey clave = generarClave();
-    private final JwtEncoder encoder = config.jwtEncoder(clave);
-    private final JwtDecoder decoder = config.jwtDecoder(clave);
+    private final JwtEncoder encoder = config.jwtEncoder(CLAVES);
+    private final JwtDecoder decoder = config.jwtDecoder(CLAVES);
     private final JwtTokenAdapter adapter = new JwtTokenAdapter(encoder);
 
-    private static SecretKey generarClave() {
-        try {
-            KeyGenerator generador =
-                    KeyGenerator.getInstance("HmacSHA256");
-            generador.init(256);
-            return generador.generateKey();
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException(e);
-        }
-    }
-
-    private Usuario crearUsuario() {
-        return new Usuario(
-                1L, "rocio", "hash-de-prueba",
-                "Rocio", "Portal", "rocio@example.com",
-                null, "es", true
-        );
-    }
-
-    private String firmarToken(
-            String audiencia,
-            Instant vencimiento
-    ) {
-        JwtClaimsSet claims = JwtClaimsSet.builder()
-                .issuer("svc-turnos")
-                .subject("1")
-                .audience(List.of(audiencia))
-                .issuedAt(vencimiento.minus(1, ChronoUnit.HOURS))
-                .expiresAt(vencimiento)
-                .build();
-
-        JwsHeader header = JwsHeader
-                .with(MacAlgorithm.HS256)
-                .build();
-
-        return encoder.encode(
-                JwtEncoderParameters.from(header, claims)
-        ).getTokenValue();
-    }
-
     @Test
-    void debeGenerarYValidarUnTokenReal() {
-        String token = adapter.generarToken(crearUsuario());
-
+    void debeGenerarYValidarUnTokenRealRs256ConLosClaimsExistentes() {
+        Usuario usuario = new Usuario(
+                1L, "rocio", "hash-de-prueba", "Rocio", "Portal",
+                "rocio@example.com", null, "es", true);
+        String token = adapter.generarToken(usuario);
         Jwt jwt = decoder.decode(token);
 
+        assertEquals("RS256", jwt.getHeaders().get("alg"));
         assertEquals("1", jwt.getSubject());
         assertEquals("svc-turnos", jwt.getClaimAsString("iss"));
         assertEquals("rocio", jwt.getClaimAsString("login"));
-        assertTrue(jwt.getAudience().contains("svc-turnos-api"));
+        assertEquals(List.of("svc-turnos-api"), jwt.getAudience());
+        assertEquals(Duration.ofHours(2), Duration.between(jwt.getIssuedAt(), jwt.getExpiresAt()));
         assertTrue(jwt.getExpiresAt().isAfter(Instant.now()));
         assertFalse(jwt.getClaims().containsKey("passwordHash"));
+        assertFalse(jwt.getClaims().containsKey("scope"));
     }
 
-    @Test
-    void debeRechazarTokenFirmadoConOtraClave() {
-        String token = adapter.generarToken(crearUsuario());
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("tokensInvalidos")
+    void debeRechazarTokensInvalidos(String descripcion, String token) {
+        assertThrows(JwtException.class, () -> decoder.decode(token));
+    }
 
-        JwtDecoder otroDecoder =
-                config.jwtDecoder(generarClave());
+    private static JWTClaimsSet.Builder claimsValidos() {
+        Instant ahora = Instant.now();
+        return new JWTClaimsSet.Builder()
+                .issuer("svc-turnos")
+                .subject("1")
+                .audience("svc-turnos-api")
+                .issueTime(Date.from(ahora))
+                .expirationTime(Date.from(ahora.plusSeconds(300)));
+    }
 
-        assertThrows(
-                JwtException.class,
-                () -> otroDecoder.decode(token)
+    private static String firmar(JWTClaimsSet claims) throws JOSEException {
+        return firmar(claims, CLAVES, JWSAlgorithm.RS256);
+    }
+
+    private static String firmar(JWTClaimsSet claims, KeyPair claves, JWSAlgorithm algoritmo)
+            throws JOSEException {
+        SignedJWT jwt = new SignedJWT(new JWSHeader(algoritmo), claims);
+        jwt.sign(new RSASSASigner(claves.getPrivate()));
+        return jwt.serialize();
+    }
+
+    private static Stream<Arguments> tokensInvalidos() throws JOSEException {
+        byte[] secreto = new byte[32];
+        new SecureRandom().nextBytes(secreto);
+        SignedJWT hs256 = new SignedJWT(new JWSHeader(JWSAlgorithm.HS256), claimsValidos().build());
+        hs256.sign(new MACSigner(secreto));
+
+        return Stream.of(
+                Arguments.of("Alterado", alterar(firmar(claimsValidos().build()))),
+                Arguments.of("Otra clave RSA", firmar(claimsValidos().build(),
+                        JwtTestContextInitializer.generarClaves(2048), JWSAlgorithm.RS256)),
+                Arguments.of("HS256", hs256.serialize()),
+                Arguments.of("RS512", firmar(claimsValidos().build(), CLAVES, JWSAlgorithm.RS512)),
+                Arguments.of("Vencido", firmar(claimsValidos()
+                        .expirationTime(Date.from(Instant.now().minusSeconds(300))).build())),
+                Arguments.of("Sin expiracion", firmar(claimsValidos().expirationTime(null).build())),
+                Arguments.of("Emisor incorrecto", firmar(claimsValidos().issuer("otro-servicio").build())),
+                Arguments.of("Sin emisor", firmar(claimsValidos().issuer(null).build())),
+                Arguments.of("Audiencia incorrecta", firmar(claimsValidos().audience("svc-catalogo-api").build())),
+                Arguments.of("Sin audiencia", firmar(claimsValidos().audience((String) null).build())),
+                Arguments.of("Sujeto ausente", firmar(claimsValidos().subject(null).build())),
+                Arguments.of("Sujeto vacio", firmar(claimsValidos().subject("").build())),
+                Arguments.of("Sujeto en blanco", firmar(claimsValidos().subject("  ").build()))
         );
     }
 
-    @Test
-    void debeRechazarTokenVencido() {
-        String token = firmarToken(
-                "svc-turnos-api",
-                Instant.now().minus(2, ChronoUnit.HOURS)
-        );
-
-        assertThrows(
-                JwtException.class,
-                () -> decoder.decode(token)
-        );
-    }
-
-    @Test
-    void debeRechazarTokenConAudienciaIncorrecta() {
-        String token = firmarToken(
-                "otra-aplicacion",
-                Instant.now().plus(1, ChronoUnit.HOURS)
-        );
-
-        assertThrows(
-                JwtException.class,
-                () -> decoder.decode(token)
-        );
+    private static String alterar(String token) {
+        String[] partes = token.split("\\.");
+        String claims = new String(Base64.getUrlDecoder().decode(partes[1]), StandardCharsets.UTF_8)
+                .replace("\"sub\":\"1\"", "\"sub\":\"2\"");
+        partes[1] = Base64.getUrlEncoder().withoutPadding().encodeToString(claims.getBytes(StandardCharsets.UTF_8));
+        return String.join(".", partes);
     }
 }
