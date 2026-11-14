@@ -79,9 +79,9 @@ class Argon2idAutenticacionIntegrationTest {
         String almacenado = jdbc.queryForObject("SELECT password_hash FROM usuarios", String.class);
         assertNotNull(almacenado);
         assertTrue(almacenado.startsWith("$argon2id$v=19$m=19456,t=2,p=1$"));
-        assertFalse(password.equals(almacenado));
+        assertNotEquals(password, almacenado);
         var usuario = usuarios.buscarPorLogin("usuario-prueba").orElseThrow();
-        assertTrue(almacenado.equals(usuario.passwordHash()));
+        assertEquals(almacenado, usuario.passwordHash());
         assertTrue(hasher.matches(password, usuario.passwordHash()));
 
         String respuesta = mockMvc.perform(post("/api/authenticate").contentType(MediaType.APPLICATION_JSON)
