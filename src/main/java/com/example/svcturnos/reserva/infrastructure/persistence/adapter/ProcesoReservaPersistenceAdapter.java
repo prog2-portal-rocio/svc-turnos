@@ -38,7 +38,7 @@ public class ProcesoReservaPersistenceAdapter implements ProcesoReservaPersisten
             mapper.actualizar(actual, proceso);
             repository.flush();
             return mapper.toDomain(actual);
-        } catch (ObjectOptimisticLockingFailureException ex) {
+        } catch (ObjectOptimisticLockingFailureException _) {
             throw new ProcesoReservaConcurrenteException();
         }
     }
@@ -62,7 +62,7 @@ public class ProcesoReservaPersistenceAdapter implements ProcesoReservaPersisten
         if (anterior.estado() != proceso.estado()) {
             try {
                 anterior.registrarHold(proceso.holdId(), proceso.procesoExternoId(), proceso.vencimientoHold());
-            } catch (IllegalStateException ex) {
+            } catch (IllegalStateException _) {
                 throw new ProcesoReservaNoActualizableException("No se permite retroceder el estado del proceso");
             }
         } else if (!anterior.equals(proceso)) {

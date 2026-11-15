@@ -18,8 +18,9 @@ class ProcesoReservaTest {
         var conHold = p.registrarHold("hold", "externo", Instant.now().plusSeconds(300));
         assertEquals(EstadoProcesoReserva.HOLD_REGISTRADO, conHold.estado());
         assertEquals(p.usuarioId(), conHold.usuarioId());
+        Instant vencimiento = conHold.vencimientoHold();
         assertThrows(IllegalStateException.class,
-                () -> conHold.registrarHold("otro", "externo", conHold.vencimientoHold()));
+                () -> conHold.registrarHold("otro", "externo", vencimiento));
     }
 
     @Test

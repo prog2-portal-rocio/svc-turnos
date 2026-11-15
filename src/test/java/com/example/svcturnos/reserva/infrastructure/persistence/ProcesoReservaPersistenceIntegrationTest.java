@@ -98,7 +98,7 @@ class ProcesoReservaPersistenceIntegrationTest {
                 try {
                     procesos.guardar(progreso);
                     return true;
-                } catch (ProcesoReservaConcurrenteException ex) {
+                } catch (ProcesoReservaConcurrenteException _) {
                     return false;
                 }
             };
