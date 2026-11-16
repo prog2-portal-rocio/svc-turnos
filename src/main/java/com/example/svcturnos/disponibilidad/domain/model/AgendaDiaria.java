@@ -17,7 +17,7 @@ public final class AgendaDiaria {
         var bloques = new TreeSet<>(Comparator.comparing(BloqueHorario::inicio).thenComparing(BloqueHorario::fin));
         for (var horario : horarios) {
             validarIdentidad(profesionalId, horario);
-            if (horario.enabled() && horario.dayOfWeek() == fecha.getDayOfWeek()) {
+            if (horario.enabled() && horario.dayOfWeek().equals(fecha.getDayOfWeek())) {
                 agregarBloques(fecha, horario, bloques);
             }
         }
