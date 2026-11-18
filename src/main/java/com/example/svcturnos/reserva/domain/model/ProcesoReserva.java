@@ -31,9 +31,9 @@ public record ProcesoReserva(
         if (estado == EstadoProcesoReserva.HOLD_REGISTRADO && !datosHold) {
             throw new IllegalArgumentException("El hold requiere identificadores y vencimiento");
         }
-        if (estado == EstadoProcesoReserva.CREADO
+        if (estado != EstadoProcesoReserva.HOLD_REGISTRADO
                 && (holdId != null || procesoExternoId != null || vencimientoHold != null)) {
-            throw new IllegalArgumentException("Un proceso creado no tiene hold");
+            throw new IllegalArgumentException("Un proceso sin hold registrado no puede contener datos de hold");
         }
     }
 
@@ -49,9 +49,39 @@ public record ProcesoReserva(
                 EstadoProcesoReserva.CREADO, null, null, null, ahora, ahora, null);
     }
 
+    /** Un resultado desconocido no vence localmente; un hold conocido respeta su expiresAt. */
+    public boolean impideNuevoHold(Instant ahora) {
+        return estado == EstadoProcesoReserva.HOLD_SOLICITADO
+                || (estado == EstadoProcesoReserva.HOLD_REGISTRADO && vencimientoHold.isAfter(ahora));
+    }
+
+    /** Intención durable previa al POST; también representa un resultado remoto desconocido. */
+    public ProcesoReserva solicitarHold() {
+        return cambiarEstado(EstadoProcesoReserva.HOLD_SOLICITADO);
+    }
+
+    public ProcesoReserva rechazarHold() {
+        return cambiarEstado(EstadoProcesoReserva.HOLD_RECHAZADO);
+    }
+
+    public boolean puedeTransicionarA(EstadoProcesoReserva siguiente) {
+        return switch (estado) {
+            // Se conserva la transición anterior para procesos y consumidores locales existentes.
+            case CREADO -> siguiente == EstadoProcesoReserva.HOLD_SOLICITADO || siguiente == EstadoProcesoReserva.HOLD_REGISTRADO;
+            case HOLD_SOLICITADO -> siguiente == EstadoProcesoReserva.HOLD_REGISTRADO || siguiente == EstadoProcesoReserva.HOLD_RECHAZADO;
+            case HOLD_RECHAZADO, HOLD_REGISTRADO -> false;
+        };
+    }
+
+    private ProcesoReserva cambiarEstado(EstadoProcesoReserva siguiente) {
+        if (!puedeTransicionarA(siguiente)) { throw new IllegalStateException("Transición de hold no permitida"); }
+        return new ProcesoReserva(id, usuarioId, profesionalId, fecha, hora, siguiente, null, null, null,
+                creadoEn, Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS), version);
+    }
+
     /** Registra progreso conocido; no realiza una operación remota ni extiende la vigencia del hold. */
     public ProcesoReserva registrarHold(String hold, String procesoExterno, Instant vencimiento) {
-        if (estado != EstadoProcesoReserva.CREADO) {
+        if (!puedeTransicionarA(EstadoProcesoReserva.HOLD_REGISTRADO)) {
             throw new IllegalStateException("El proceso ya tiene un hold registrado");
         }
         return new ProcesoReserva(id, usuarioId, profesionalId, fecha, hora,

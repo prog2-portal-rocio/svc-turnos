@@ -9,6 +9,12 @@ import com.example.svcturnos.reserva.infrastructure.persistence.repository.Proce
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.ConnectionCallback;
+import java.time.Clock;
+import com.example.svcturnos.reserva.domain.model.EstadoProcesoReserva;
+import com.example.svcturnos.reserva.domain.exception.CrearHoldException;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -18,16 +24,23 @@ import java.util.Optional;
 public class ProcesoReservaPersistenceAdapter implements ProcesoReservaPersistencePort {
     private final ProcesoReservaJpaRepository repository;
     private final ProcesoReservaMapper mapper = new ProcesoReservaMapper();
+    private final JdbcTemplate jdbc;
+    private final Clock clock;
 
-    public ProcesoReservaPersistenceAdapter(ProcesoReservaJpaRepository repository) {
+    public ProcesoReservaPersistenceAdapter(ProcesoReservaJpaRepository repository, JdbcTemplate jdbc, Clock clock) {
         this.repository = repository;
+        this.jdbc = jdbc;
+        this.clock = clock;
     }
 
     @Override
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public ProcesoReserva guardar(ProcesoReserva proceso) {
         try {
             if (proceso.id() == null) {
+                if (proceso.estado() == EstadoProcesoReserva.HOLD_SOLICITADO) {
+                    verificarSolicitudEquivalente(proceso);
+                }
                 return mapper.toDomain(repository.saveAndFlush(mapper.toEntity(proceso)));
             }
             var actual = repository.findById(proceso.id())
@@ -35,12 +48,35 @@ public class ProcesoReservaPersistenceAdapter implements ProcesoReservaPersisten
             var anterior = mapper.toDomain(actual);
             validarSolicitudOriginal(anterior, proceso);
             validarProgreso(anterior, proceso);
+            if (anterior.estado() != EstadoProcesoReserva.HOLD_SOLICITADO
+                    && proceso.estado() == EstadoProcesoReserva.HOLD_SOLICITADO) {
+                verificarSolicitudEquivalente(proceso);
+            }
             mapper.actualizar(actual, proceso);
             repository.flush();
             return mapper.toDomain(actual);
         } catch (ObjectOptimisticLockingFailureException _) {
             throw new ProcesoReservaConcurrenteException();
         }
+    }
+
+    private void verificarSolicitudEquivalente(ProcesoReserva proceso) {
+        // JDBC y JPA comparten esta transacción. El lock se libera al commit/rollback, antes del HTTP.
+        String clave = "hold:" + proceso.usuarioId() + ":" + proceso.profesionalId() + ":" + proceso.fecha() + ":" + proceso.hora();
+        jdbc.execute((ConnectionCallback<Void>) connection -> {
+            try (var statement = connection.prepareStatement("SELECT pg_advisory_xact_lock(hashtextextended(?, 0))")) {
+                statement.setString(1, clave);
+                statement.execute();
+            }
+            return null;
+        });
+        var ahora = clock.instant();
+        repository.findByUsuarioIdAndProfesionalIdAndFechaAndHoraOrderByIdDesc(
+                        proceso.usuarioId(), proceso.profesionalId(), proceso.fecha(), proceso.hora()).stream()
+                .map(mapper::toDomain).filter(anterior -> anterior.impideNuevoHold(ahora)).findFirst()
+                .ifPresent(anterior -> {
+                    throw new CrearHoldException(CrearHoldException.Motivo.SOLICITUD_DUPLICADA, null, anterior.id());
+                });
     }
 
     private void validarSolicitudOriginal(ProcesoReserva anterior, ProcesoReserva proceso) {
@@ -60,10 +96,8 @@ public class ProcesoReservaPersistenceAdapter implements ProcesoReservaPersisten
             throw new ProcesoReservaNoActualizableException("La auditoría no puede retroceder");
         }
         if (anterior.estado() != proceso.estado()) {
-            try {
-                anterior.registrarHold(proceso.holdId(), proceso.procesoExternoId(), proceso.vencimientoHold());
-            } catch (IllegalStateException _) {
-                throw new ProcesoReservaNoActualizableException("No se permite retroceder el estado del proceso");
+            if (!anterior.puedeTransicionarA(proceso.estado())) {
+                throw new ProcesoReservaNoActualizableException("Transición de hold no permitida");
             }
         } else if (!anterior.equals(proceso)) {
             throw new ProcesoReservaNoActualizableException("El progreso registrado no puede reemplazarse");
