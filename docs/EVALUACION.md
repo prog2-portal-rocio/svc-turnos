@@ -3,7 +3,7 @@
 
 > Documento **generado automáticamente** por la cátedra de Programación II (UM): RepoSense + análisis de calidad de **7 dimensiones**. **No editar a mano**: se regenera en cada evaluación.
 > Rama evaluada: `main`. Análisis **heurístico** (regex + métricas) + build: es una criba para orientar la revisión, **no una nota**. La **documentación** del repositorio no se evalúa.
-> Generado: 2026-11-17.
+> Generado: 2026-11-18.
 
 ## 1. Veredicto
 
@@ -106,68 +106,96 @@ Cada dimensión indica **qué mide**, **por qué importa** y **tu resultado**. C
 
 ## 5. Señales detectadas
 
-El análisis encontró las siguientes señales (archivo, sin número de línea a propósito):
+El análisis encontró las siguientes señales, con el archivo y la línea donde se originan cuando están disponibles:
+
+**Archivos con más señales**
+
+| Archivo | Señales |
+|---|---:|
+| `src/main/java/com/example/svcturnos/usuario/application/service/RegistrarUsuarioService.java` | 6 |
+| `src/main/java/com/example/svcturnos/disponibilidad/infrastructure/client/OcupacionesRestClientAdapter.java` | 5 |
+| `src/main/java/com/example/svcturnos/reserva/domain/model/ProcesoReserva.java` | 5 |
+| `src/main/java/com/example/svcturnos/catalogo/infrastructure/client/CatalogoRestClientAdapter.java` | 5 |
+| `src/test/java/com/example/svcturnos/usuario/infrastructure/security/JwtSecurityHttpTest.java` | 4 |
+| `src/main/java/com/example/svcturnos/disponibilidad/application/service/ConsultarDisponibilidadService.java` | 3 |
+| `src/main/java/com/example/svcturnos/reserva/infrastructure/persistence/entity/ProcesoReservaEntity.java` | 3 |
+| `src/main/java/com/example/svcturnos/catalogo/infrastructure/client/dto/ProfesionalCatalogoResponse.java` | 3 |
+| `src/main/java/com/example/svcturnos/usuario/infrastructure/security/JwtConfig.java` | 2 |
+| `src/main/java/com/example/svcturnos/usuario/infrastructure/security/SecurityConfig.java` | 2 |
 
 **DIP/concretos** (31)
-- clase 'JwtTokenAdapter' muy acoplada (CBO=18) — `src/main/java/com/example/svcturnos/usuario/infrastructure/security/JwtTokenAdapter.java`
-- clase 'JwtConfig' muy acoplada (CBO=36) — `src/main/java/com/example/svcturnos/usuario/infrastructure/security/JwtConfig.java`
-- clase 'JwtConfig' instancia 3 concretos (CBO=36) — `src/main/java/com/example/svcturnos/usuario/infrastructure/security/JwtConfig.java`
-- clase 'SecurityConfig' muy acoplada (CBO=10) — `src/main/java/com/example/svcturnos/usuario/infrastructure/security/SecurityConfig.java`
-- clase 'UsuarioEntity' muy acoplada (CBO=8) — `src/main/java/com/example/svcturnos/usuario/infrastructure/persistence/entity/UsuarioEntity.java`
-- clase 'UsuarioController' muy acoplada (CBO=8) — `src/main/java/com/example/svcturnos/usuario/infrastructure/web/controller/UsuarioController.java`
-- clase 'UsuarioExceptionHandler' muy acoplada (CBO=17) — `src/main/java/com/example/svcturnos/usuario/infrastructure/web/handler/UsuarioExceptionHandler.java`
-- clase 'RegistrarUsuarioService' muy acoplada (CBO=14) — `src/main/java/com/example/svcturnos/usuario/application/service/RegistrarUsuarioService.java`
-- clase 'RegistrarUsuarioService' instancia 6 concretos (CBO=14) — `src/main/java/com/example/svcturnos/usuario/application/service/RegistrarUsuarioService.java`
-- clase 'OcupacionesRestClientAdapter' muy acoplada (CBO=29) — `src/main/java/com/example/svcturnos/disponibilidad/infrastructure/client/OcupacionesRestClientAdapter.java`
-- clase 'OcupacionesRestClientAdapter' instancia 7 concretos (CBO=29) — `src/main/java/com/example/svcturnos/disponibilidad/infrastructure/client/OcupacionesRestClientAdapter.java`
-- clase 'OcupacionesRestClientConfiguration' muy acoplada (CBO=13) — `src/main/java/com/example/svcturnos/disponibilidad/infrastructure/client/OcupacionesRestClientConfiguration.java`
-- clase 'OcupacionesResponseMapper' muy acoplada (CBO=8) — `src/main/java/com/example/svcturnos/disponibilidad/infrastructure/client/OcupacionesResponseMapper.java`
-- clase 'OcupacionesResponseMapper' instancia 4 concretos (CBO=8) — `src/main/java/com/example/svcturnos/disponibilidad/infrastructure/client/OcupacionesResponseMapper.java`
-- clase 'ConsultarDisponibilidadService' muy acoplada (CBO=15) — `src/main/java/com/example/svcturnos/disponibilidad/application/service/ConsultarDisponibilidadService.java`
-- clase 'ConsultarDisponibilidadService' instancia 4 concretos (CBO=15) — `src/main/java/com/example/svcturnos/disponibilidad/application/service/ConsultarDisponibilidadService.java`
-- clase 'Ocupacion' muy acoplada (CBO=9) — `src/main/java/com/example/svcturnos/disponibilidad/domain/model/Ocupacion.java`
-- clase 'AgendaDiaria' muy acoplada (CBO=10) — `src/main/java/com/example/svcturnos/disponibilidad/domain/model/AgendaDiaria.java`
-- clase 'AgendaDiaria' instancia 4 concretos (CBO=10) — `src/main/java/com/example/svcturnos/disponibilidad/domain/model/AgendaDiaria.java`
-- clase 'ConsultaOcupacionesException' muy acoplada (CBO=13) — `src/main/java/com/example/svcturnos/disponibilidad/domain/exception/ConsultaOcupacionesException.java`
-- clase 'Motivo' muy acoplada (CBO=9) — `src/main/java/com/example/svcturnos/disponibilidad/domain/exception/ConsultaOcupacionesException.java`
-- clase 'ProcesoReservaPersistenceAdapter' muy acoplada (CBO=11) — `src/main/java/com/example/svcturnos/reserva/infrastructure/persistence/adapter/ProcesoReservaPersistenceAdapter.java`
-- clase 'ProcesoReservaPersistenceAdapter' instancia 8 concretos (CBO=11) — `src/main/java/com/example/svcturnos/reserva/infrastructure/persistence/adapter/ProcesoReservaPersistenceAdapter.java`
-- clase 'ProcesoReservaEntity' muy acoplada (CBO=8) — `src/main/java/com/example/svcturnos/reserva/infrastructure/persistence/entity/ProcesoReservaEntity.java`
-- clase 'ProcesoReserva' muy acoplada (CBO=15) — `src/main/java/com/example/svcturnos/reserva/domain/model/ProcesoReserva.java`
-- clase 'ProcesoReserva' instancia 8 concretos (CBO=15) — `src/main/java/com/example/svcturnos/reserva/domain/model/ProcesoReserva.java`
-- clase 'CatalogoRestClientAdapter' muy acoplada (CBO=27) — `src/main/java/com/example/svcturnos/catalogo/infrastructure/client/CatalogoRestClientAdapter.java`
-- clase 'CatalogoRestClientAdapter' instancia 6 concretos (CBO=27) — `src/main/java/com/example/svcturnos/catalogo/infrastructure/client/CatalogoRestClientAdapter.java`
-- clase 'CatalogoRestClientConfiguration' muy acoplada (CBO=12) — `src/main/java/com/example/svcturnos/catalogo/infrastructure/client/CatalogoRestClientConfiguration.java`
-- clase 'ConsultaCatalogoException' muy acoplada (CBO=12) — `src/main/java/com/example/svcturnos/catalogo/domain/exception/ConsultaCatalogoException.java`
-- clase 'Motivo' muy acoplada (CBO=8) — `src/main/java/com/example/svcturnos/catalogo/domain/exception/ConsultaCatalogoException.java`
+- clase 'ConsultaCatalogoException' muy acoplada (CBO=12) — `src/main/java/com/example/svcturnos/catalogo/domain/exception/ConsultaCatalogoException.java:3`
+- clase 'Motivo' muy acoplada (CBO=8) — `src/main/java/com/example/svcturnos/catalogo/domain/exception/ConsultaCatalogoException.java:5`
+- clase 'CatalogoRestClientAdapter' muy acoplada (CBO=27) — `src/main/java/com/example/svcturnos/catalogo/infrastructure/client/CatalogoRestClientAdapter.java:25`
+- clase 'CatalogoRestClientAdapter' instancia 6 concretos (CBO=27) — `src/main/java/com/example/svcturnos/catalogo/infrastructure/client/CatalogoRestClientAdapter.java:25`
+- clase 'CatalogoRestClientConfiguration' muy acoplada (CBO=12) — `src/main/java/com/example/svcturnos/catalogo/infrastructure/client/CatalogoRestClientConfiguration.java:16`
+- clase 'ConsultarDisponibilidadService' muy acoplada (CBO=15) — `src/main/java/com/example/svcturnos/disponibilidad/application/service/ConsultarDisponibilidadService.java:18`
+- clase 'ConsultarDisponibilidadService' instancia 4 concretos (CBO=15) — `src/main/java/com/example/svcturnos/disponibilidad/application/service/ConsultarDisponibilidadService.java:18`
+- clase 'ConsultaOcupacionesException' muy acoplada (CBO=13) — `src/main/java/com/example/svcturnos/disponibilidad/domain/exception/ConsultaOcupacionesException.java:3`
+- clase 'Motivo' muy acoplada (CBO=9) — `src/main/java/com/example/svcturnos/disponibilidad/domain/exception/ConsultaOcupacionesException.java:4`
+- clase 'AgendaDiaria' muy acoplada (CBO=10) — `src/main/java/com/example/svcturnos/disponibilidad/domain/model/AgendaDiaria.java:10`
+- clase 'AgendaDiaria' instancia 4 concretos (CBO=10) — `src/main/java/com/example/svcturnos/disponibilidad/domain/model/AgendaDiaria.java:10`
+- clase 'Ocupacion' muy acoplada (CBO=9) — `src/main/java/com/example/svcturnos/disponibilidad/domain/model/Ocupacion.java:8`
+- clase 'OcupacionesResponseMapper' muy acoplada (CBO=8) — `src/main/java/com/example/svcturnos/disponibilidad/infrastructure/client/OcupacionesResponseMapper.java:12`
+- clase 'OcupacionesResponseMapper' instancia 4 concretos (CBO=8) — `src/main/java/com/example/svcturnos/disponibilidad/infrastructure/client/OcupacionesResponseMapper.java:12`
+- clase 'OcupacionesRestClientAdapter' muy acoplada (CBO=29) — `src/main/java/com/example/svcturnos/disponibilidad/infrastructure/client/OcupacionesRestClientAdapter.java:23`
+- clase 'OcupacionesRestClientAdapter' instancia 7 concretos (CBO=29) — `src/main/java/com/example/svcturnos/disponibilidad/infrastructure/client/OcupacionesRestClientAdapter.java:23`
+- clase 'OcupacionesRestClientConfiguration' muy acoplada (CBO=13) — `src/main/java/com/example/svcturnos/disponibilidad/infrastructure/client/OcupacionesRestClientConfiguration.java:15`
+- clase 'ProcesoReserva' muy acoplada (CBO=15) — `src/main/java/com/example/svcturnos/reserva/domain/model/ProcesoReserva.java:7`
+- clase 'ProcesoReserva' instancia 8 concretos (CBO=15) — `src/main/java/com/example/svcturnos/reserva/domain/model/ProcesoReserva.java:7`
+- clase 'ProcesoReservaPersistenceAdapter' muy acoplada (CBO=11) — `src/main/java/com/example/svcturnos/reserva/infrastructure/persistence/adapter/ProcesoReservaPersistenceAdapter.java:18`
+- clase 'ProcesoReservaPersistenceAdapter' instancia 8 concretos (CBO=11) — `src/main/java/com/example/svcturnos/reserva/infrastructure/persistence/adapter/ProcesoReservaPersistenceAdapter.java:18`
+- clase 'ProcesoReservaEntity' muy acoplada (CBO=8) — `src/main/java/com/example/svcturnos/reserva/infrastructure/persistence/entity/ProcesoReservaEntity.java:11`
+- clase 'RegistrarUsuarioService' muy acoplada (CBO=14) — `src/main/java/com/example/svcturnos/usuario/application/service/RegistrarUsuarioService.java:15`
+- clase 'RegistrarUsuarioService' instancia 6 concretos (CBO=14) — `src/main/java/com/example/svcturnos/usuario/application/service/RegistrarUsuarioService.java:15`
+- clase 'UsuarioEntity' muy acoplada (CBO=8) — `src/main/java/com/example/svcturnos/usuario/infrastructure/persistence/entity/UsuarioEntity.java:18`
+- clase 'JwtConfig' muy acoplada (CBO=36) — `src/main/java/com/example/svcturnos/usuario/infrastructure/security/JwtConfig.java:22`
+- clase 'JwtConfig' instancia 3 concretos (CBO=36) — `src/main/java/com/example/svcturnos/usuario/infrastructure/security/JwtConfig.java:22`
+- clase 'JwtTokenAdapter' muy acoplada (CBO=18) — `src/main/java/com/example/svcturnos/usuario/infrastructure/security/JwtTokenAdapter.java:14`
+- clase 'SecurityConfig' muy acoplada (CBO=10) — `src/main/java/com/example/svcturnos/usuario/infrastructure/security/SecurityConfig.java:15`
+- clase 'UsuarioController' muy acoplada (CBO=8) — `src/main/java/com/example/svcturnos/usuario/infrastructure/web/controller/UsuarioController.java:15`
+- clase 'UsuarioExceptionHandler' muy acoplada (CBO=17) — `src/main/java/com/example/svcturnos/usuario/infrastructure/web/handler/UsuarioExceptionHandler.java:15`
 
-**SRP/responsabilidad** (14)
-- método 'SecurityConfig.securityFilterChain' de 36 líneas — `src/main/java/com/example/svcturnos/usuario/infrastructure/security/SecurityConfig.java`
-- clase 'UsuarioEntity' grande (LOC=64, métodos=5, campos=11) — `src/main/java/com/example/svcturnos/usuario/infrastructure/persistence/entity/UsuarioEntity.java`
-- clase 'UsuarioEntity' con baja cohesión (10%) — `src/main/java/com/example/svcturnos/usuario/infrastructure/persistence/entity/UsuarioEntity.java`
-- método 'RegistrarUsuarioService.registrar' de 46 líneas — `src/main/java/com/example/svcturnos/usuario/application/service/RegistrarUsuarioService.java`
-- método 'RegistrarUsuarioService.registrar' con complejidad 7 — `src/main/java/com/example/svcturnos/usuario/application/service/RegistrarUsuarioService.java`
-- método 'RegistrarUsuarioService.esEmailValido' con complejidad 7 — `src/main/java/com/example/svcturnos/usuario/application/service/RegistrarUsuarioService.java`
-- clase 'OcupacionesRestClientAdapter' con baja cohesión (28%) — `src/main/java/com/example/svcturnos/disponibilidad/infrastructure/client/OcupacionesRestClientAdapter.java`
-- método 'OcupacionesRestClientAdapter.consultarOcupaciones' con complejidad 8 — `src/main/java/com/example/svcturnos/disponibilidad/infrastructure/client/OcupacionesRestClientAdapter.java`
-- clase 'ConsultarDisponibilidadService' con baja cohesión (10%) — `src/main/java/com/example/svcturnos/disponibilidad/application/service/ConsultarDisponibilidadService.java`
-- clase 'ProcesoReservaEntity' grande (LOC=50, métodos=24, campos=12) — `src/main/java/com/example/svcturnos/reserva/infrastructure/persistence/entity/ProcesoReservaEntity.java`
-- clase 'ProcesoReservaEntity' con baja cohesión (4%) — `src/main/java/com/example/svcturnos/reserva/infrastructure/persistence/entity/ProcesoReservaEntity.java`
-- clase 'CatalogoRestClientAdapter' grande (LOC=66, métodos=14, campos=3) — `src/main/java/com/example/svcturnos/catalogo/infrastructure/client/CatalogoRestClientAdapter.java`
-- clase 'CatalogoRestClientAdapter' con baja cohesión (7%) — `src/main/java/com/example/svcturnos/catalogo/infrastructure/client/CatalogoRestClientAdapter.java`
-- método 'CatalogoRestClientAdapter.ConsultaCatalogoException' con complejidad 6 — `src/main/java/com/example/svcturnos/catalogo/infrastructure/client/CatalogoRestClientAdapter.java`
+**SRP/responsabilidad** (27)
+- método 'Categoria.Categoria' con 6 parámetros — `src/main/java/com/example/svcturnos/catalogo/domain/model/Categoria.java:5`
+- método 'HorarioSemanal.HorarioSemanal' con 9 parámetros — `src/main/java/com/example/svcturnos/catalogo/domain/model/HorarioSemanal.java:7`
+- método 'Profesional.Profesional' con 8 parámetros — `src/main/java/com/example/svcturnos/catalogo/domain/model/Profesional.java:5`
+- clase 'CatalogoRestClientAdapter' grande (LOC=66, métodos=11, campos=3) — `src/main/java/com/example/svcturnos/catalogo/infrastructure/client/CatalogoRestClientAdapter.java:25`
+- clase 'CatalogoRestClientAdapter' con baja cohesión (7%) — `src/main/java/com/example/svcturnos/catalogo/infrastructure/client/CatalogoRestClientAdapter.java:25`
+- método 'HorarioCatalogoResponse.HorarioCatalogoResponse' con 9 parámetros — `src/main/java/com/example/svcturnos/catalogo/infrastructure/client/dto/HorarioCatalogoResponse.java:7`
+- método 'ProfesionalCatalogoResponse.ProfesionalCatalogoResponse' con 8 parámetros — `src/main/java/com/example/svcturnos/catalogo/infrastructure/client/dto/ProfesionalCatalogoResponse.java:5`
+- método 'ProfesionalCatalogoResponse.CategoriaResponse' con 6 parámetros — `src/main/java/com/example/svcturnos/catalogo/infrastructure/client/dto/ProfesionalCatalogoResponse.java:9`
+- método 'CategoriaResponse.CategoriaResponse' con 6 parámetros — `src/main/java/com/example/svcturnos/catalogo/infrastructure/client/dto/ProfesionalCatalogoResponse.java:9`
+- clase 'ConsultarDisponibilidadService' con baja cohesión (20%) — `src/main/java/com/example/svcturnos/disponibilidad/application/service/ConsultarDisponibilidadService.java:18`
+- clase 'OcupacionesRestClientAdapter' con baja cohesión (42%) — `src/main/java/com/example/svcturnos/disponibilidad/infrastructure/client/OcupacionesRestClientAdapter.java:23`
+- método 'OcupacionesRestClientAdapter.consultarOcupaciones' con complejidad 8 — `src/main/java/com/example/svcturnos/disponibilidad/infrastructure/client/OcupacionesRestClientAdapter.java:36`
+- método 'ProcesoReserva.ProcesoReserva' de 51 líneas — `src/main/java/com/example/svcturnos/reserva/domain/model/ProcesoReserva.java:7`
+- método 'ProcesoReserva.ProcesoReserva' con 12 parámetros — `src/main/java/com/example/svcturnos/reserva/domain/model/ProcesoReserva.java:7`
+- método 'ProcesoReserva.ProcesoReserva' con complejidad 8 — `src/main/java/com/example/svcturnos/reserva/domain/model/ProcesoReserva.java:7`
+- clase 'ProcesoReservaEntity' grande (LOC=50, métodos=24, campos=12) — `src/main/java/com/example/svcturnos/reserva/infrastructure/persistence/entity/ProcesoReservaEntity.java:11`
+- clase 'ProcesoReservaEntity' con baja cohesión (4%) — `src/main/java/com/example/svcturnos/reserva/infrastructure/persistence/entity/ProcesoReservaEntity.java:11`
+- clase 'RegistrarUsuarioService' grande (LOC=86, métodos=10, campos=2) — `src/main/java/com/example/svcturnos/usuario/application/service/RegistrarUsuarioService.java:15`
+- método 'RegistrarUsuarioService.registrar' de 46 líneas — `src/main/java/com/example/svcturnos/usuario/application/service/RegistrarUsuarioService.java:30`
+- método 'RegistrarUsuarioService.registrar' con complejidad 7 — `src/main/java/com/example/svcturnos/usuario/application/service/RegistrarUsuarioService.java:30`
+- método 'RegistrarUsuarioService.esEmailValido' con complejidad 7 — `src/main/java/com/example/svcturnos/usuario/application/service/RegistrarUsuarioService.java:87`
+- método 'Usuario.Usuario' con 9 parámetros — `src/main/java/com/example/svcturnos/usuario/domain/model/Usuario.java:3`
+- método 'RegistrarUsuarioUseCase.DatosRegistro' con 7 parámetros — `src/main/java/com/example/svcturnos/usuario/domain/ports/in/RegistrarUsuarioUseCase.java:9`
+- método 'DatosRegistro.DatosRegistro' con 7 parámetros — `src/main/java/com/example/svcturnos/usuario/domain/ports/in/RegistrarUsuarioUseCase.java:9`
+- clase 'UsuarioEntity' con baja cohesión (10%) — `src/main/java/com/example/svcturnos/usuario/infrastructure/persistence/entity/UsuarioEntity.java:18`
+- método 'SecurityConfig.securityFilterChain' de 36 líneas — `src/main/java/com/example/svcturnos/usuario/infrastructure/security/SecurityConfig.java:18`
+- método 'RegistroResponse.RegistroResponse' con 8 parámetros — `src/main/java/com/example/svcturnos/usuario/infrastructure/web/dto/RegistroResponse.java:3`
 
 **OCP/type-switch** (2)
-- clase 'OcupacionesRestClientAdapter' con 2 type-checks — `src/main/java/com/example/svcturnos/disponibilidad/infrastructure/client/OcupacionesRestClientAdapter.java`
-- clase 'CatalogoRestClientAdapter' con 3 type-checks — `src/main/java/com/example/svcturnos/catalogo/infrastructure/client/CatalogoRestClientAdapter.java`
+- clase 'CatalogoRestClientAdapter' con 3 type-checks — `src/main/java/com/example/svcturnos/catalogo/infrastructure/client/CatalogoRestClientAdapter.java:25`
+- clase 'OcupacionesRestClientAdapter' con 2 type-checks — `src/main/java/com/example/svcturnos/disponibilidad/infrastructure/client/OcupacionesRestClientAdapter.java:23`
 
 **duplicación** (6)
 - duplicación lógica: 4.4% · boilerplate: 1.8%
-- bloque de 8 líneas repetido 5 veces en src/test/java/com/example/svcturnos/usuario/infrastructure/security/JwtSecurityHttpTest.java:74, src/test/java/com/example/svcturnos/usuario/infrastructure/persistence/adapter/UsuarioPersistenceAdapterTest.java:22, src/test/java/com/example/svcturnos/usuario/infrastructure/web/controller/AutenticacionControllerTest.java:51 — `src/test/java/com/example/svcturnos/usuario/infrastructure/security/JwtSecurityHttpTest.java`
-- bloque de 8 líneas repetido 5 veces en src/test/java/com/example/svcturnos/usuario/infrastructure/security/JwtSecurityHttpTest.java:75, src/test/java/com/example/svcturnos/usuario/infrastructure/persistence/adapter/UsuarioPersistenceAdapterTest.java:23, src/test/java/com/example/svcturnos/usuario/infrastructure/web/controller/AutenticacionControllerTest.java:52 — `src/test/java/com/example/svcturnos/usuario/infrastructure/security/JwtSecurityHttpTest.java`
-- bloque de 8 líneas repetido 5 veces en src/test/java/com/example/svcturnos/usuario/infrastructure/security/JwtSecurityHttpTest.java:73, src/test/java/com/example/svcturnos/usuario/infrastructure/web/controller/AutenticacionControllerTest.java:50, src/test/java/com/example/svcturnos/usuario/infrastructure/web/controller/UsuarioControllerTest.java:55 — `src/test/java/com/example/svcturnos/usuario/infrastructure/security/JwtSecurityHttpTest.java`
-- bloque de 8 líneas repetido 4 veces en src/test/java/com/example/svcturnos/usuario/infrastructure/security/JwtSecurityHttpTest.java:72, src/test/java/com/example/svcturnos/usuario/infrastructure/web/controller/AutenticacionControllerTest.java:49, src/test/java/com/example/svcturnos/usuario/infrastructure/web/controller/UsuarioControllerTest.java:54 — `src/test/java/com/example/svcturnos/usuario/infrastructure/security/JwtSecurityHttpTest.java`
-- bloque de 8 líneas repetido 2 veces en src/test/java/com/example/svcturnos/usuario/application/service/RegistrarUsuarioServiceTest.java:89, src/test/java/com/example/svcturnos/usuario/application/service/RegistrarUsuarioServiceTest.java:109 — `src/test/java/com/example/svcturnos/usuario/application/service/RegistrarUsuarioServiceTest.java`
+- bloque de 8 líneas repetido 2 veces en src/test/java/com/example/svcturnos/usuario/application/service/RegistrarUsuarioServiceTest.java:89, src/test/java/com/example/svcturnos/usuario/application/service/RegistrarUsuarioServiceTest.java:109 — `src/test/java/com/example/svcturnos/usuario/application/service/RegistrarUsuarioServiceTest.java:89`
+- bloque de 8 líneas repetido 4 veces en src/test/java/com/example/svcturnos/usuario/infrastructure/security/JwtSecurityHttpTest.java:72, src/test/java/com/example/svcturnos/usuario/infrastructure/web/controller/AutenticacionControllerTest.java:49, src/test/java/com/example/svcturnos/usuario/infrastructure/web/controller/UsuarioControllerTest.java:54 — `src/test/java/com/example/svcturnos/usuario/infrastructure/security/JwtSecurityHttpTest.java:72`
+- bloque de 8 líneas repetido 5 veces en src/test/java/com/example/svcturnos/usuario/infrastructure/security/JwtSecurityHttpTest.java:73, src/test/java/com/example/svcturnos/usuario/infrastructure/web/controller/AutenticacionControllerTest.java:50, src/test/java/com/example/svcturnos/usuario/infrastructure/web/controller/UsuarioControllerTest.java:55 — `src/test/java/com/example/svcturnos/usuario/infrastructure/security/JwtSecurityHttpTest.java:73`
+- bloque de 8 líneas repetido 5 veces en src/test/java/com/example/svcturnos/usuario/infrastructure/security/JwtSecurityHttpTest.java:74, src/test/java/com/example/svcturnos/usuario/infrastructure/persistence/adapter/UsuarioPersistenceAdapterTest.java:22, src/test/java/com/example/svcturnos/usuario/infrastructure/web/controller/AutenticacionControllerTest.java:51 — `src/test/java/com/example/svcturnos/usuario/infrastructure/security/JwtSecurityHttpTest.java:74`
+- bloque de 8 líneas repetido 5 veces en src/test/java/com/example/svcturnos/usuario/infrastructure/security/JwtSecurityHttpTest.java:75, src/test/java/com/example/svcturnos/usuario/infrastructure/persistence/adapter/UsuarioPersistenceAdapterTest.java:23, src/test/java/com/example/svcturnos/usuario/infrastructure/web/controller/AutenticacionControllerTest.java:52 — `src/test/java/com/example/svcturnos/usuario/infrastructure/security/JwtSecurityHttpTest.java:75`
 
 ## 6. Evolución por commit
 
