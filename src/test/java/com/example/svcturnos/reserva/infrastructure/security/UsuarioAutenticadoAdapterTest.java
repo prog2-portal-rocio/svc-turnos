@@ -1,7 +1,6 @@
 package com.example.svcturnos.reserva.infrastructure.security;
 
 import com.example.svcturnos.reserva.domain.exception.CrearHoldException;
-import com.example.svcturnos.usuario.domain.model.Usuario;
 import com.example.svcturnos.usuario.domain.ports.out.UsuarioPersistencePort;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
