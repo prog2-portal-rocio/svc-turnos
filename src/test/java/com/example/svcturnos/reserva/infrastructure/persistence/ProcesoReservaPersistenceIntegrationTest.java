@@ -135,7 +135,44 @@ class ProcesoReservaPersistenceIntegrationTest {
 
     @Test
     void migracionesEstanAplicadasSinCambiarUsuarios() {
-        assertEquals(2, jdbc.queryForObject("SELECT count(*) FROM flyway_schema_history WHERE success", Integer.class));
+        assertEquals(4, jdbc.queryForObject("SELECT count(*) FROM flyway_schema_history WHERE success", Integer.class));
         assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM usuarios WHERE id = ?", Integer.class, usuario));
+    }
+    @Test
+    void migraV2ConProcesosCreadosYHoldsRegistradosSinPerderDatos() throws Exception {
+        var config = org.flywaydb.core.Flyway.configure()
+                .dataSource(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())
+                .schemas("upgrade_v2").defaultSchema("upgrade_v2");
+        config.target("2").load().migrate();
+        try (var connection = java.sql.DriverManager.getConnection(postgres.getJdbcUrl(),
+                postgres.getUsername(), postgres.getPassword()); var statement = connection.createStatement()) {
+            statement.executeUpdate("""
+                    INSERT INTO upgrade_v2.usuarios(login,password_hash,first_name,last_name,email)
+                    VALUES ('previo', 'hash-prueba', 'Nombre', 'Apellido', 'previo@test.invalid')
+                    """);
+            statement.executeUpdate("""
+                    INSERT INTO upgrade_v2.procesos_reserva(usuario_id,profesional_id,fecha,hora,estado,creado_en,actualizado_en)
+                    SELECT id,15,DATE '2026-12-01',TIME '09:30','CREADO',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP
+                    FROM upgrade_v2.usuarios
+                    """);
+            statement.executeUpdate("""
+                    INSERT INTO upgrade_v2.procesos_reserva(usuario_id,profesional_id,fecha,hora,estado,
+                        hold_id,proceso_externo_id,vencimiento_hold,creado_en,actualizado_en)
+                    SELECT id,15,DATE '2026-12-01',TIME '10:00','HOLD_REGISTRADO','hold-previo','externo-previo',
+                        TIMESTAMPTZ '2026-12-01T15:00:00Z',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP FROM upgrade_v2.usuarios
+                    """);
+            org.flywaydb.core.Flyway.configure()
+                    .dataSource(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())
+                    .schemas("upgrade_v2").defaultSchema("upgrade_v2").load().migrate();
+            try (var result = statement.executeQuery("SELECT estado,hold_id FROM upgrade_v2.procesos_reserva ORDER BY id")) {
+                assertTrue(result.next());
+                assertEquals("CREADO", result.getString(1));
+                assertNull(result.getString(2));
+                assertTrue(result.next());
+                assertEquals("HOLD_REGISTRADO", result.getString(1));
+                assertEquals("hold-previo", result.getString(2));
+                assertFalse(result.next());
+            }
+        }
     }
 }
