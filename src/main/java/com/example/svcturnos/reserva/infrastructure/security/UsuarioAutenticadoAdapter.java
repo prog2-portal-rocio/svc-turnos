@@ -1,6 +1,8 @@
 package com.example.svcturnos.reserva.infrastructure.security;
 
 import com.example.svcturnos.reserva.domain.exception.CrearHoldException;
+import com.example.svcturnos.reserva.domain.model.PacienteReserva;
+import com.example.svcturnos.usuario.domain.model.Usuario;
 import com.example.svcturnos.reserva.domain.ports.out.UsuarioAutenticadoPort;
 import com.example.svcturnos.usuario.domain.ports.out.UsuarioPersistencePort;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -15,7 +17,15 @@ public class UsuarioAutenticadoAdapter implements UsuarioAutenticadoPort {
     public UsuarioAutenticadoAdapter(UsuarioPersistencePort usuarios) { this.usuarios = usuarios; }
 
     @Override
-    public Long obtenerUsuarioId() {
+    public Long obtenerUsuarioId() { return usuarioActual().id(); }
+
+    @Override
+    public PacienteReserva obtenerPaciente() {
+        var usuario = usuarioActual();
+        return new PacienteReserva(usuario.id(), usuario.firstName(), usuario.lastName());
+    }
+
+    private Usuario usuarioActual() {
         var auth = SecurityContextHolder.getContext().getAuthentication();
         if (!(auth instanceof JwtAuthenticationToken jwt) || !jwt.isAuthenticated()) {
             throw new CrearHoldException(NO_AUTENTICADO);
@@ -25,7 +35,7 @@ public class UsuarioAutenticadoAdapter implements UsuarioAutenticadoPort {
         if (login == null || login.isBlank()) { throw new CrearHoldException(NO_AUTORIZADO); }
         var usuario = usuarios.buscarPorLogin(login).orElseThrow(() -> new CrearHoldException(NO_AUTORIZADO));
         if (!usuario.activated() || !id.equals(usuario.id())) { throw new CrearHoldException(NO_AUTORIZADO); }
-        return id;
+        return usuario;
     }
 
     private Long leerId(String subject) {

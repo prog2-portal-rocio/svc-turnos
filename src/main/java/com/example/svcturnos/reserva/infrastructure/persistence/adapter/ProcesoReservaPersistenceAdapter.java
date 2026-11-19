@@ -96,7 +96,7 @@ public class ProcesoReservaPersistenceAdapter implements ProcesoReservaPersisten
             throw new ProcesoReservaNoActualizableException("La auditoría no puede retroceder");
         }
         if (anterior.estado() != proceso.estado()) {
-            if (!anterior.puedeTransicionarA(proceso.estado())) {
+            if (!anterior.admiteProgreso(proceso)) {
                 throw new ProcesoReservaNoActualizableException("Transición de hold no permitida");
             }
         } else if (!anterior.equals(proceso)) {
