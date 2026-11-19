@@ -24,9 +24,10 @@ public record MensajeReserva(String topic, int particion, long offset, byte[] cl
     @Override
     public boolean equals(Object objeto) {
         if (this == objeto) { return true; }
-        if (!(objeto instanceof MensajeReserva otro)) { return false; }
-        return particion == otro.particion && offset == otro.offset && topic.equals(otro.topic)
-                && Arrays.equals(clave, otro.clave) && Arrays.equals(contenido, otro.contenido);
+        if (!(objeto instanceof MensajeReserva(var otroTopic, var otraParticion, var otroOffset,
+                                               var otraClave, var otroContenido))) { return false; }
+        return particion == otraParticion && offset == otroOffset && topic.equals(otroTopic)
+                && Arrays.equals(clave, otraClave) && Arrays.equals(contenido, otroContenido);
     }
 
     @Override

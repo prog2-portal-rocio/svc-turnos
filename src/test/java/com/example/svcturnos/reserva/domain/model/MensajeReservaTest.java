@@ -36,7 +36,8 @@ class MensajeReservaTest {
         var segundo = new MensajeReserva("acciones", 0, 5L, new byte[]{1}, new byte[]{2});
         assertEquals(primero, segundo);
         assertEquals(segundo, primero);
-        assertEquals(primero, primero);
+        boolean reflexiva = primero.equals(primero);
+        assertTrue(reflexiva, "equals debe ser reflexivo");
         assertEquals(primero.hashCode(), segundo.hashCode());
         var conjunto = new HashSet<>(List.of(primero));
         primero.clave()[0] = 9;
@@ -52,8 +53,16 @@ class MensajeReservaTest {
         assertNotEquals(original, new MensajeReserva("acciones", 0, 6L, new byte[]{1}, new byte[]{2}));
         assertNotEquals(original, new MensajeReserva("acciones", 0, 5L, new byte[]{9}, new byte[]{2}));
         assertNotEquals(original, new MensajeReserva("acciones", 0, 5L, new byte[]{1}, new byte[]{9}));
-        assertNotEquals(original, null);
+        assertNotEquals(null, original);
         assertNotEquals(original, new Object());
+    }
+
+    @ParameterizedTest
+    @NullSource
+    void equalsRechazaReferenciaNula(Object referenciaNula) {
+        var mensaje = new MensajeReserva("acciones", 0, 5L, new byte[]{1}, new byte[]{2});
+        boolean iguales = mensaje.equals(referenciaNula);
+        assertFalse(iguales, "equals debe rechazar una referencia nula");
     }
 
     @Test
