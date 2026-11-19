@@ -8,5 +8,6 @@ public interface ProcesoReservaPersistencePort {
     /** Al iniciar HOLD_SOLICITADO, verifica atómicamente que no exista un intento equivalente bloqueante. */
     ProcesoReserva guardar(ProcesoReserva proceso);
     Optional<ProcesoReserva> buscarPorId(Long id);
+    List<ProcesoReserva> buscarPorProcesoExternoId(String procesoExternoId);
     List<ProcesoReserva> buscarPorUsuario(Long usuarioId);
 }
