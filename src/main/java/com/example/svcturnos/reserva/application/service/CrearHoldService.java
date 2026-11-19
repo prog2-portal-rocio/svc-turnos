@@ -4,6 +4,7 @@ import com.example.svcturnos.disponibilidad.domain.ports.in.ConsultarDisponibili
 import com.example.svcturnos.reserva.domain.exception.CrearHoldException;
 import com.example.svcturnos.reserva.domain.model.ProcesoReserva;
 import com.example.svcturnos.reserva.domain.model.HoldCreado;
+import com.example.svcturnos.reserva.domain.model.PacienteReserva;
 import com.example.svcturnos.reserva.domain.model.SolicitudHold;
 import com.example.svcturnos.reserva.domain.ports.in.CrearHoldUseCase;
 import com.example.svcturnos.reserva.domain.ports.out.*;
@@ -44,7 +45,7 @@ public class CrearHoldService implements CrearHoldUseCase {
     private ProcesoReserva enviarYRegistrar(SolicitudHold solicitud, Long propietario, ProcesoReserva intento) {
         HoldCreado hold;
         try {
-            hold = remoto.crear(solicitud, "user-" + propietario);
+            hold = remoto.crear(solicitud, PacienteReserva.identificadorExterno(propietario));
         } catch (CrearHoldException error) {
             if (error.getMotivo() != RESULTADO_INCIERTO) {
                 guardar(intento.rechazarHold());

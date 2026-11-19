@@ -4,7 +4,10 @@ import com.example.svcturnos.disponibilidad.infrastructure.client.OcupacionesRes
 import com.example.svcturnos.reserva.domain.exception.CrearHoldException;
 import com.example.svcturnos.reserva.domain.model.SolicitudHold;
 import com.sun.net.httpserver.HttpServer;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import com.example.svcturnos.reserva.domain.exception.ConfirmarHoldException;
+import com.example.svcturnos.reserva.domain.model.PacienteReserva;
 import java.net.InetSocketAddress;
 import java.time.*;
 import java.util.concurrent.*;
@@ -20,7 +23,23 @@ class CrearHoldHttpFailureTest {
         return new CrearHoldRestAdapter(client, "tecnico-prueba");
     }
 
-    @Test void servidorAceptaElPostPeroCierraSinRespuestaNoHayReenvioAutomatico() throws Exception {
+    void comprobarResultadoIncierto(int port, boolean confirmar) {
+        if (confirmar) {
+            var client = new OcupacionesRestClientConfiguration().ocupacionesRestClient("http://127.0.0.1:" + port,
+                    Duration.ofSeconds(1), Duration.ofMillis(200));
+            var remoto = new ConfirmarHoldRestAdapter(client, "tecnico-prueba");
+            var paciente = new PacienteReserva(7L, "Juan", "Perez");
+            var error = assertThrows(ConfirmarHoldException.class, () -> remoto.confirmar("hold", paciente));
+            assertEquals(ConfirmarHoldException.Motivo.RESULTADO_INCIERTO, error.getMotivo());
+        } else {
+            var remoto = adapter(port);
+            var error = assertThrows(CrearHoldException.class, () -> remoto.crear(solicitud, "user-7"));
+            assertEquals(CrearHoldException.Motivo.RESULTADO_INCIERTO, error.getMotivo());
+        }
+    }
+
+    @ParameterizedTest @ValueSource(booleans = {false, true})
+    void servidorAceptaElPostPeroCierraSinRespuestaNoHayReenvioAutomatico(boolean confirmar) throws Exception {
         var contador = new AtomicInteger();
         var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/api/appointment-holds", exchange -> {
@@ -30,14 +49,13 @@ class CrearHoldHttpFailureTest {
         });
         server.start();
         try {
-            var remoto = adapter(server.getAddress().getPort());
-            var error = assertThrows(CrearHoldException.class, () -> remoto.crear(solicitud, "user-7"));
-            assertEquals(CrearHoldException.Motivo.RESULTADO_INCIERTO, error.getMotivo());
+            comprobarResultadoIncierto(server.getAddress().getPort(), confirmar);
             assertEquals(1, contador.get());
         } finally { server.stop(0); }
     }
 
-    @Test void timeoutDeRespuestaDespuesDeRecibirPostConservaIncertidumbre() throws Exception {
+    @ParameterizedTest @ValueSource(booleans = {false, true})
+    void timeoutDeRespuestaDespuesDeRecibirPostConservaIncertidumbre(boolean confirmar) throws Exception {
         var contador = new AtomicInteger();
         var terminar = new CountDownLatch(1);
         var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
@@ -50,9 +68,7 @@ class CrearHoldHttpFailureTest {
         });
         server.start();
         try {
-            var remoto = adapter(server.getAddress().getPort());
-            var error = assertThrows(CrearHoldException.class, () -> remoto.crear(solicitud, "user-7"));
-            assertEquals(CrearHoldException.Motivo.RESULTADO_INCIERTO, error.getMotivo());
+            comprobarResultadoIncierto(server.getAddress().getPort(), confirmar);
             assertEquals(1, contador.get());
         } finally { terminar.countDown(); server.stop(0); }
     }
