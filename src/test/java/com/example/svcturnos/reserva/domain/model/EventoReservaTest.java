@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class EventoReservaTest {
     final Instant ahora = Instant.parse("2026-09-10T14:35:10Z");
-    final EventoReserva evento = new EventoReserva("event", EventoReserva.SOLICITUD, "process", "hold", ahora, 1,
+    final EventoReserva evento = new EventoReserva("event", EventoReserva.TIPO_SOLICITUD_INFORMACION, "process", "hold", ahora, 1,
             new SolicitudInformacionAdicional("PHONE_NUMBER", "Informe telefono", ahora.plusSeconds(300)));
 
     ProcesoReserva proceso(String externo, String hold) {
@@ -42,8 +42,8 @@ class EventoReservaTest {
     @Test void invariantesDelDominioNoDependenDeJackson() {
         assertThrows(IllegalArgumentException.class, () -> new SolicitudInformacionAdicional("OTRO", "mensaje", ahora));
         var solicitud = evento.solicitud();
-        assertThrows(IllegalArgumentException.class, () -> new EventoReserva(" ", EventoReserva.SOLICITUD, "p", "h", ahora, 1, solicitud));
-        assertThrows(IllegalArgumentException.class, () -> new EventoReserva("e", EventoReserva.SOLICITUD, "p", "h", ahora, 2, solicitud));
-        assertThrows(IllegalArgumentException.class, () -> new EventoReserva("e", EventoReserva.SOLICITUD, "p", "h", ahora, 1, null));
+        assertThrows(IllegalArgumentException.class, () -> new EventoReserva(" ", EventoReserva.TIPO_SOLICITUD_INFORMACION, "p", "h", ahora, 1, solicitud));
+        assertThrows(IllegalArgumentException.class, () -> new EventoReserva("e", EventoReserva.TIPO_SOLICITUD_INFORMACION, "p", "h", ahora, 2, solicitud));
+        assertThrows(IllegalArgumentException.class, () -> new EventoReserva("e", EventoReserva.TIPO_SOLICITUD_INFORMACION, "p", "h", ahora, 1, null));
     }
 }

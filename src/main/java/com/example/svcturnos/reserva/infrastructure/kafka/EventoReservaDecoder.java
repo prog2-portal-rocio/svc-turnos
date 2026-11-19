@@ -36,7 +36,7 @@ public class EventoReservaDecoder {
                     texto(contenido, "reservationProcessId"), texto(contenido, "holdId"),
                     Instant.parse(texto(contenido, "occurredAt")), version.intValue());
             SolicitudInformacionDto solicitud = null;
-            if (EventoReserva.SOLICITUD.equals(dto.eventType())) {
+            if (EventoReserva.TIPO_SOLICITUD_INFORMACION.equals(dto.eventType())) {
                 solicitud = new SolicitudInformacionDto(texto(contenido, "requiredField"), texto(contenido, "message"),
                         Instant.parse(texto(contenido, "expiresAt")));
             }

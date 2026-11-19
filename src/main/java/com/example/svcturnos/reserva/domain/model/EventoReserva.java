@@ -5,14 +5,14 @@ import java.util.List;
 
 public record EventoReserva(String eventId, String eventType, String reservationProcessId, String holdId,
                              Instant occurredAt, int schemaVersion, SolicitudInformacionAdicional solicitud) {
-    public static final String SOLICITUD = "AdditionalInformationRequested";
+    public static final String TIPO_SOLICITUD_INFORMACION = "AdditionalInformationRequested";
 
     public EventoReserva {
         obligatorio(eventId);
         obligatorio(eventType);
         obligatorio(reservationProcessId);
         obligatorio(holdId);
-        if (occurredAt == null || schemaVersion != 1 || (SOLICITUD.equals(eventType) != (solicitud != null))) {
+        if (occurredAt == null || schemaVersion != 1 || (TIPO_SOLICITUD_INFORMACION.equals(eventType) != (solicitud != null))) {
             throw new IllegalArgumentException("Evento de reservas v1 inválido");
         }
     }
@@ -32,5 +32,5 @@ public record EventoReserva(String eventId, String eventType, String reservation
         return new CorrelacionEvento(EstadoEventoReserva.SOLICITUD_REGISTRADA, proceso.id());
     }
 
-    public boolean esSolicitudInformacion() { return SOLICITUD.equals(eventType); }
+    public boolean esSolicitudInformacion() { return TIPO_SOLICITUD_INFORMACION.equals(eventType); }
 }

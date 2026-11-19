@@ -13,7 +13,7 @@ public class EventoInboxRowMapper implements RowMapper<EventoInbox> {
         EventoReserva evento = null;
         if (rs.getString("event_id") != null) {
             SolicitudInformacionAdicional solicitud = null;
-            if (EventoReserva.SOLICITUD.equals(rs.getString("event_type"))) {
+            if (EventoReserva.TIPO_SOLICITUD_INFORMACION.equals(rs.getString("event_type"))) {
                 solicitud = new SolicitudInformacionAdicional(rs.getString("required_field"), rs.getString("mensaje"), instante(rs, "expires_at"));
             }
             evento = new EventoReserva(rs.getString("event_id"), rs.getString("event_type"), rs.getString("proceso_externo_id"),

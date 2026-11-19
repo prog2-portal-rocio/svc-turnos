@@ -1,28 +1,43 @@
 package com.example.svcturnos.reserva.domain.model;
 
-/** Datos de transporte originales, sin dependencias del cliente Kafka ni interpretación del payload. */
-public final class MensajeReserva {
-    private final String topic;
-    private final int particion;
-    private final long offset;
-    private final byte[] clave;
-    private final byte[] contenido;
+import java.util.Arrays;
+import java.util.Objects;
 
-    public MensajeReserva(String topic, int particion, long offset, byte[] clave, byte[] contenido) {
+/** Datos originales con copias defensivas e igualdad por contenido, sin dependencias Kafka. */
+public record MensajeReserva(String topic, int particion, long offset, byte[] clave, byte[] contenido) {
+    public MensajeReserva {
         if (topic == null || topic.isBlank() || particion < 0 || offset < 0) {
             throw new IllegalArgumentException("Coordenadas del mensaje inválidas");
         }
-        this.topic = topic;
-        this.particion = particion;
-        this.offset = offset;
-        this.clave = copiar(clave);
-        this.contenido = copiar(contenido);
+        clave = copiar(clave);
+        contenido = copiar(contenido);
     }
 
     private static byte[] copiar(byte[] dato) { return dato == null ? null : dato.clone(); }
-    public String topic() { return topic; }
-    public int particion() { return particion; }
-    public long offset() { return offset; }
+
+    @Override
     public byte[] clave() { return copiar(clave); }
+
+    @Override
     public byte[] contenido() { return copiar(contenido); }
+
+    @Override
+    public boolean equals(Object objeto) {
+        if (this == objeto) { return true; }
+        if (!(objeto instanceof MensajeReserva otro)) { return false; }
+        return particion == otro.particion && offset == otro.offset && topic.equals(otro.topic)
+                && Arrays.equals(clave, otro.clave) && Arrays.equals(contenido, otro.contenido);
+    }
+
+    @Override
+    public int hashCode() {
+        int resultado = Objects.hash(topic, particion, offset);
+        resultado = 31 * resultado + Arrays.hashCode(clave);
+        return 31 * resultado + Arrays.hashCode(contenido);
+    }
+
+    @Override
+    public String toString() {
+        return "MensajeReserva[topic=" + topic + ", particion=" + particion + ", offset=" + offset + "]";
+    }
 }

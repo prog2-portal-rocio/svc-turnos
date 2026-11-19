@@ -20,6 +20,7 @@ import tools.jackson.databind.json.JsonMapper;
 @Repository
 @Transactional(readOnly = true)
 public class InboxReservasPersistenceAdapter implements InboxReservasPort {
+    private static final String PARAMETRO_ESTADO = "estado";
     private static final String INSERTAR = """
             INSERT INTO eventos_reserva_inbox(topic,particion,offset_mensaje,clave,contenido,payload_json,event_id,event_id_hash,event_type,
                 proceso_externo_id,hold_id,occurred_at,schema_version,required_field,mensaje,expires_at,canonico,estado,motivo,original_id)
@@ -47,7 +48,7 @@ public class InboxReservasPersistenceAdapter implements InboxReservasPort {
         parametros.addValue("original", original);
         String contenidoOriginal = jdbc.queryForObject("SELECT payload_json FROM eventos_reserva_inbox WHERE id=:original", parametros, String.class);
         boolean iguales = json.readTree(contenidoOriginal).equals(json.readTree(recepcion.json()));
-        parametros.addValue("canonico", false).addValue("estado",
+        parametros.addValue("canonico", false).addValue(PARAMETRO_ESTADO,
                 iguales ? EstadoEventoReserva.DUPLICADO.name() : EstadoEventoReserva.EVENT_ID_EN_CONFLICTO.name());
         jdbc.queryForList(INSERTAR, parametros, Long.class);
         return jdbc.queryForObject("""
@@ -69,7 +70,7 @@ public class InboxReservasPersistenceAdapter implements InboxReservasPort {
                 .addValue("version", evento == null ? null : evento.schemaVersion())
                 .addValue("campo", solicitud == null ? null : solicitud.requiredField()).addValue("mensaje", solicitud == null ? null : solicitud.message())
                 .addValue("vencimiento", solicitud == null ? null : Timestamp.from(solicitud.expiresAt().truncatedTo(java.time.temporal.ChronoUnit.MICROS)))
-                .addValue("canonico", evento != null).addValue("estado", evento == null ? EstadoEventoReserva.INVALIDO.name() : EstadoEventoReserva.RECIBIDO.name())
+                .addValue("canonico", evento != null).addValue(PARAMETRO_ESTADO, evento == null ? EstadoEventoReserva.INVALIDO.name() : EstadoEventoReserva.RECIBIDO.name())
                 .addValue("motivo", recepcion.invalidez() == null ? null : recepcion.invalidez().name()).addValue("original", null);
     }
 
@@ -107,7 +108,7 @@ public class InboxReservasPersistenceAdapter implements InboxReservasPort {
         jdbc.update("""
                 UPDATE eventos_reserva_inbox SET estado=:estado, proceso_local_id=:proceso
                 WHERE id=:id AND canonico AND estado IN ('RECIBIDO','PENDIENTE_CORRELACION')
-                """, new MapSqlParameterSource("id", id).addValue("estado", correlacion.estado().name()).addValue("proceso", correlacion.procesoLocalId()));
+                """, new MapSqlParameterSource("id", id).addValue(PARAMETRO_ESTADO, correlacion.estado().name()).addValue("proceso", correlacion.procesoLocalId()));
         return buscarPorId(id).orElseThrow(() -> new IllegalArgumentException("Recepción no encontrada"));
     }
 }
