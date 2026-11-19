@@ -9,5 +9,6 @@ import java.time.LocalTime;
 public interface ProcesoReservaJpaRepository extends JpaRepository<ProcesoReservaEntity, Long> {
     List<ProcesoReservaEntity> findByUsuarioIdAndProfesionalIdAndFechaAndHoraOrderByIdDesc(
             Long usuarioId, Long profesionalId, LocalDate fecha, LocalTime hora);
+    List<ProcesoReservaEntity> findByProcesoExternoIdOrderByIdAsc(String procesoExternoId);
     List<ProcesoReservaEntity> findByUsuarioIdOrderByIdAsc(Long usuarioId);
 }

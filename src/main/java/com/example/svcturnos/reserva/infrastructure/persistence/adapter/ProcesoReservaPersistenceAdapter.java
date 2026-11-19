@@ -113,4 +113,8 @@ public class ProcesoReservaPersistenceAdapter implements ProcesoReservaPersisten
     public List<ProcesoReserva> buscarPorUsuario(Long usuarioId) {
         return repository.findByUsuarioIdOrderByIdAsc(usuarioId).stream().map(mapper::toDomain).toList();
     }
+    @Override
+    public List<ProcesoReserva> buscarPorProcesoExternoId(String procesoExternoId) {
+        return repository.findByProcesoExternoIdOrderByIdAsc(procesoExternoId).stream().map(mapper::toDomain).toList();
+    }
 }
