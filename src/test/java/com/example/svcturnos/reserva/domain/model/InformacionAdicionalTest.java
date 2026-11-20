@@ -10,7 +10,7 @@ import static com.example.svcturnos.reserva.support.InformacionFixtures.*;
 class InformacionAdicionalTest {
     @ParameterizedTest @CsvSource({"'+54 (9261) 555-12.34',+5492615551234", "1234567,1234567", "123456789012345,123456789012345"})
     void normalizaSegunContrato(String entrada, String esperado) { assertEquals(esperado, new Telefono(entrada).numero()); }
-    @ParameterizedTest @NullSource @ValueSource(strings = {"", " ", "123456", "1234567890123456", "++1234567", "abc1234567", "12+34567", "１２３４５６７"})
+    @ParameterizedTest @NullSource @ValueSource(strings = {"", " ", "123456", "1234567890123456", "++1234567", "abc1234567", "12+34567", "１２３４５６７", "١٢٣٤٥٦٧", "१२३४५६७", "+123456٧", "𝟙𝟚𝟛𝟜𝟝𝟞𝟟"})
     void formatoInvalidoNoSeAcepta(String entrada) {
         var error = assertThrows(EnviarInformacionException.class, () -> new Telefono(entrada));
         assertEquals(EnviarInformacionException.Motivo.TELEFONO_INVALIDO, error.getMotivo());
@@ -50,4 +50,42 @@ class InformacionAdicionalTest {
     void destinoDebeCorresponderAIntegracion(String grupo) {
         assertThrows(EnviarInformacionException.class, () -> new DestinoInformacion(grupo,TOPIC));
     }
+    @ParameterizedTest @ValueSource(strings={"abc", "a-b", "abc-123", "123", "a-b-c", "a0-z9"})
+    void destinoValidoConservaCaracteresYSeparadores(String grupo) {
+        String topic = "catedra.turnos.telefono." + grupo;
+        assertEquals(grupo, new DestinoInformacion(grupo, topic).groupId());
+    }
+
+    @ParameterizedTest @ValueSource(strings={"a", "ab", "-abc", "abc-", "a--b", "ABC", "ab_c", "a.b", "ab c", "ab\n", "ábc", "ab١", "ab😀"})
+    void grupoInvalidoSeRechazaAunqueElTopicCoincida(String grupo) {
+        String topic = "catedra.turnos.telefono." + grupo;
+        var error = assertThrows(EnviarInformacionException.class, () -> new DestinoInformacion(grupo, topic));
+        assertEquals(EnviarInformacionException.Motivo.CONFIGURACION_INCOMPLETA, error.getMotivo());
+    }
+
+    @ParameterizedTest @ValueSource(ints={3, 100})
+    void limitesDeLongitudValidos(int longitud) {
+        String grupo = "a".repeat(longitud);
+        String topic = "catedra.turnos.telefono." + grupo;
+        assertEquals(topic, new DestinoInformacion(grupo, topic).topic());
+    }
+
+    @ParameterizedTest @ValueSource(ints={101, 100000})
+    void entradasLargasSeRechazanSinRecursion(int longitud) {
+        String grupo = "a".repeat(longitud);
+        String topic = "catedra.turnos.telefono." + grupo;
+        assertThrows(EnviarInformacionException.class, () -> new DestinoInformacion(grupo, topic));
+    }
+
+    @Test void repeticionesMaliciosasNoAgotanLaPila() {
+        String grupo = "a-".repeat(100000) + "a!";
+        String topic = "catedra.turnos.telefono." + grupo;
+        assertThrows(EnviarInformacionException.class, () -> new DestinoInformacion(grupo, topic));
+    }
+
+    @ParameterizedTest @NullSource @ValueSource(strings={"", "catedra.turnos.telefono.otro", "alumnos.turnos.acciones.abc"})
+    void topicDebeCoincidirExactamenteConElGrupo(String topic) {
+        assertThrows(EnviarInformacionException.class, () -> new DestinoInformacion("abc", topic));
+    }
+
 }

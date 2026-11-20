@@ -7,7 +7,8 @@ public record Telefono(String numero) {
     public Telefono {
         if (numero == null) { throw new EnviarInformacionException(TELEFONO_INVALIDO); }
         numero = numero.replaceAll("[ \t\r\n().-]", "");
-        if (!numero.matches("\\+?[0-9]{7,15}")) { throw new EnviarInformacionException(TELEFONO_INVALIDO); }
+        // String.matches no activa UNICODE_CHARACTER_CLASS: \d conserva los dígitos ASCII.
+        if (!numero.matches("\\+?\\d{7,15}")) { throw new EnviarInformacionException(TELEFONO_INVALIDO); }
     }
     @Override public String toString() { return "Telefono[protegido]"; }
 }

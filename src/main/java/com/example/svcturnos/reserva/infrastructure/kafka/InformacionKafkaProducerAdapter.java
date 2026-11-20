@@ -33,11 +33,11 @@ public class InformacionKafkaProducerAdapter implements PublicarInformacionPort 
                 "requestEventId", envio.requestEventId(), "information", Map.of("phoneNumber", envio.telefono().numero()),
                 "occurredAt", envio.occurredAt().toString(), "schemaVersion", 1);
         try {
-            var record = new ProducerRecord<>(envio.topic(), envio.reservationProcessId().getBytes(StandardCharsets.UTF_8),
+            var mensajeKafka = new ProducerRecord<>(envio.topic(), envio.reservationProcessId().getBytes(StandardCharsets.UTF_8),
                     json.writeValueAsBytes(payload));
             // execute gestiona el recurso, sin usar ni modificar el listener compartido de send.
             kafka.execute(producer -> {
-                enviarConAcuse(producer, record);
+                enviarConAcuse(producer, mensajeKafka);
                 return null;
             });
         } catch (RuntimeException _) {
@@ -45,9 +45,9 @@ public class InformacionKafkaProducerAdapter implements PublicarInformacionPort 
         }
     }
 
-    private void enviarConAcuse(Producer<byte[], byte[]> producer, ProducerRecord<byte[], byte[]> record) {
+    private void enviarConAcuse(Producer<byte[], byte[]> producer, ProducerRecord<byte[], byte[]> mensajeKafka) {
         try {
-            producer.send(record).get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+            producer.send(mensajeKafka).get(timeout.toMillis(), TimeUnit.MILLISECONDS);
         } catch (InterruptedException _) {
             Thread.currentThread().interrupt();
             throw sinConfirmacion();

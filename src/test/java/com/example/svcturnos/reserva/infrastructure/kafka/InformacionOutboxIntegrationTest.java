@@ -126,10 +126,10 @@ class InformacionOutboxIntegrationTest {
             consumer.subscribe(List.of(TOPIC));
             long limite=System.nanoTime()+Duration.ofSeconds(15).toNanos();
             while (resultado.size()<cantidad && System.nanoTime()<limite) {
-                for (var record:consumer.poll(Duration.ofMillis(200))) {
-                    var contenido=json.readTree(record.value());
+                for (var mensajeKafka:consumer.poll(Duration.ofMillis(200))) {
+                    var contenido=json.readTree(mensajeKafka.value());
                     if (evento.toString().equals(contenido.path("eventId").asString())) {
-                        assertArrayEquals(contenido.path("reservationProcessId").asString().getBytes(java.nio.charset.StandardCharsets.UTF_8),record.key());
+                        assertArrayEquals(contenido.path("reservationProcessId").asString().getBytes(java.nio.charset.StandardCharsets.UTF_8),mensajeKafka.key());
                         resultado.add(contenido);
                     }
                 }

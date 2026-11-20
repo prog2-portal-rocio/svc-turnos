@@ -40,11 +40,11 @@ class InformacionKafkaProducerAdapterTest {
         when(producer.send(any(ProducerRecord.class)))
                 .thenReturn(CompletableFuture.completedFuture(mock(RecordMetadata.class)));
         var envio=envio(EstadoEnvioInformacion.PUBLICANDO);adapter.publicar(envio);
-        ArgumentCaptor<ProducerRecord<byte[],byte[]>> record=ArgumentCaptor.forClass(ProducerRecord.class);
-        verify(producer).send(record.capture());
-        assertEquals(TOPIC,record.getValue().topic());
-        assertEquals("externo",new String(record.getValue().key(),StandardCharsets.UTF_8));
-        var body=json.readTree(record.getValue().value());
+        ArgumentCaptor<ProducerRecord<byte[],byte[]>> mensajeKafka=ArgumentCaptor.forClass(ProducerRecord.class);
+        verify(producer).send(mensajeKafka.capture());
+        assertEquals(TOPIC,mensajeKafka.getValue().topic());
+        assertEquals("externo",new String(mensajeKafka.getValue().key(),StandardCharsets.UTF_8));
+        var body=json.readTree(mensajeKafka.getValue().value());
         verify(kafka,never()).setProducerListener(any());
         assertEquals(9,body.size());assertEquals("AdditionalInformationSubmitted",body.path("eventType").asString());
         assertEquals(envio.eventId().toString(),body.path("eventId").asString());
