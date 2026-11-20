@@ -95,6 +95,14 @@ public class InboxReservasPersistenceAdapter implements InboxReservasPort {
     }
 
     @Override
+    public List<EventoInbox> buscarSolicitudesPorProceso(Long procesoId) {
+        return jdbc.query("""
+                SELECT * FROM eventos_reserva_inbox WHERE canonico AND proceso_local_id=:proceso
+                    AND estado='SOLICITUD_REGISTRADA' AND event_type='AdditionalInformationRequested' ORDER BY id
+                """, new MapSqlParameterSource("proceso", procesoId), mapper);
+    }
+
+    @Override
     public List<Long> buscarPendientes(int limite) {
         if (limite < 1 || limite > 1000) { throw new IllegalArgumentException("Límite de consulta entre 1 y 1000"); }
         return jdbc.queryForList("""

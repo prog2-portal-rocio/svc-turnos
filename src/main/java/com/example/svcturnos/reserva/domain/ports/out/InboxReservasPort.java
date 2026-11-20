@@ -8,6 +8,7 @@ public interface InboxReservasPort {
     EventoInbox conservar(RecepcionEventoReserva recepcion);
     Optional<EventoInbox> buscarPorId(Long id);
     Optional<MensajeReserva> buscarMensajePorId(Long id);
+    List<EventoInbox> buscarSolicitudesPorProceso(Long procesoId);
     List<Long> buscarPendientes(int limite);
     EventoInbox registrarCorrelacion(Long id, CorrelacionEvento correlacion);
 }
