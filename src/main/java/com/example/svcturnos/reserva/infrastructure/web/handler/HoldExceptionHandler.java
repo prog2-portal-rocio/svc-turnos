@@ -5,13 +5,14 @@ import com.example.svcturnos.catalogo.domain.exception.ConsultaCatalogoException
 import com.example.svcturnos.disponibilidad.domain.exception.ConsultaOcupacionesException;
 import com.example.svcturnos.reserva.infrastructure.web.controller.HoldController;
 import com.example.svcturnos.reserva.infrastructure.web.controller.ConfirmacionHoldController;
+import com.example.svcturnos.reserva.infrastructure.web.controller.InformacionAdicionalController;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-@RestControllerAdvice(assignableTypes = {HoldController.class, ConfirmacionHoldController.class})
+@RestControllerAdvice(assignableTypes = {HoldController.class, ConfirmacionHoldController.class, InformacionAdicionalController.class})
 public class HoldExceptionHandler {
     @ExceptionHandler(CrearHoldException.class)
     public ProblemDetail hold(CrearHoldException error) {
