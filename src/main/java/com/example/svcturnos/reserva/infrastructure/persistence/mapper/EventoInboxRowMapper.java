@@ -10,17 +10,18 @@ import com.example.svcturnos.reserva.infrastructure.kafka.ResultadoReservaJsonMa
 import tools.jackson.databind.json.JsonMapper;
 
 public class EventoInboxRowMapper implements RowMapper<EventoInbox> {
+    private static final String COLUMNA_TIPO_EVENTO = "event_type";
     private final JsonMapper json = JsonMapper.builder().build();
     @Override
     public EventoInbox mapRow(ResultSet rs, int rowNum) throws SQLException {
         EventoReserva evento = null;
         if (rs.getString("event_id") != null) {
             SolicitudInformacionAdicional solicitud = null;
-            if (EventoReserva.TIPO_SOLICITUD_INFORMACION.equals(rs.getString("event_type"))) {
+            if (EventoReserva.TIPO_SOLICITUD_INFORMACION.equals(rs.getString(COLUMNA_TIPO_EVENTO))) {
                 solicitud = new SolicitudInformacionAdicional(rs.getString("required_field"), rs.getString("mensaje"), instante(rs, "expires_at"));
             }
             var resultado = resultado(rs);
-            evento = new EventoReserva(rs.getString("event_id"), rs.getString("event_type"), rs.getString("proceso_externo_id"),
+            evento = new EventoReserva(rs.getString("event_id"), rs.getString(COLUMNA_TIPO_EVENTO), rs.getString("proceso_externo_id"),
                     rs.getString("hold_id"), resultado == null ? instante(rs, "occurred_at") : resultado.ocurrido(),
                     rs.getInt("schema_version"), solicitud, resultado == null ? null : resultado.datos());
         }
@@ -31,7 +32,7 @@ public class EventoInboxRowMapper implements RowMapper<EventoInbox> {
     private record ResultadoLeido(ResultadoReserva datos, Instant ocurrido) { }
 
     private ResultadoLeido resultado(ResultSet rs) throws SQLException {
-        var tipo = TipoResultadoReserva.deEvento(rs.getString("event_type"));
+        var tipo = TipoResultadoReserva.deEvento(rs.getString(COLUMNA_TIPO_EVENTO));
         if (tipo.isEmpty()) { return null; }
         try {
             var contenido = json.readTree(rs.getString("payload_json"));

@@ -85,12 +85,12 @@ class ResultadosReservaTest {
     @ParameterizedTest @ValueSource(ints={1,2,3,4,5,6,7})
     void camposOpcionalesParcialesSeComparanIndependientemente(int campos) {
         var parcial=new ResultadoReserva(TipoResultadoReserva.EXPIRACION,GRUPO,"request",null,
-                (campos & 1) != 0 ? 15L : null,(campos & 2) != 0 ? LocalDate.of(2026,12,1) : null,
-                (campos & 4) != 0 ? LocalTime.of(9,30) : null,null,"HOLD_EXPIRED",null,null);
+                (campos & 1) == 0 ? null : 15L,(campos & 2) == 0 ? null : LocalDate.of(2026,12,1),
+                (campos & 4) == 0 ? null : LocalTime.of(9,30),null,"HOLD_EXPIRED",null,null);
         assertTrue(parcial.coincideCon(proceso()));
         var inconsistente=new ResultadoReserva(TipoResultadoReserva.EXPIRACION,GRUPO,"request",null,
-                (campos & 1) != 0 ? 99L : null,(campos & 2) != 0 ? LocalDate.of(2026,12,2) : null,
-                (campos & 4) != 0 ? LocalTime.of(10,30) : null,null,"HOLD_EXPIRED",null,null);
+                (campos & 1) == 0 ? null : 99L,(campos & 2) == 0 ? null : LocalDate.of(2026,12,2),
+                (campos & 4) == 0 ? null : LocalTime.of(10,30),null,"HOLD_EXPIRED",null,null);
         assertFalse(inconsistente.coincideCon(proceso()));
     }
 

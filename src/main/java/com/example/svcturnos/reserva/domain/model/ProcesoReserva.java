@@ -31,10 +31,7 @@ public record ProcesoReserva(
         if (vencimientoHold != null) {
             vencimientoHold = vencimientoHold.truncatedTo(java.time.temporal.ChronoUnit.MICROS);
         }
-        if (actualizadoEn.isBefore(creadoEn) || (version != null && version < 0)
-                || (id != null && id <= 0) || ((id == null) != (version == null))) {
-            throw new IllegalArgumentException("Identidad, versión o auditoría inválidas");
-        }
+        validarIdentidadYAuditoria(id, version, creadoEn, actualizadoEn);
         boolean datosHold = holdId != null && !holdId.isBlank()
                 && procesoExternoId != null && !procesoExternoId.isBlank() && vencimientoHold != null;
         if (estado.requiereDatosHold() && !datosHold) {
@@ -43,6 +40,13 @@ public record ProcesoReserva(
         if (!estado.requiereDatosHold()
                 && (holdId != null || procesoExternoId != null || vencimientoHold != null)) {
             throw new IllegalArgumentException("Un proceso sin hold registrado no puede contener datos de hold");
+        }
+    }
+
+    private static void validarIdentidadYAuditoria(Long id, Long version, Instant creadoEn, Instant actualizadoEn) {
+        if (actualizadoEn.isBefore(creadoEn) || (version != null && version < 0)
+                || (id != null && id <= 0) || ((id == null) != (version == null))) {
+            throw new IllegalArgumentException("Identidad, versión o auditoría inválidas");
         }
     }
 
