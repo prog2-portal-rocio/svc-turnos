@@ -41,6 +41,11 @@ public class EventoReservaDecoder {
                         Instant.parse(texto(contenido, "expiresAt")));
             }
             var evento = mapper.toDomain(dto, solicitud);
+            var tipo = TipoResultadoReserva.deEvento(dto.eventType());
+            if (tipo.isPresent()) {
+                evento = new EventoReserva(dto.eventId(), dto.eventType(), dto.reservationProcessId(), dto.holdId(),
+                        dto.occurredAt(), dto.schemaVersion(), null, ResultadoReservaJsonMapper.leer(tipo.get(), contenido));
+            }
             if (!evento.reservationProcessId().equals(clave(mensaje.clave()))) {
                 return invalido(mensaje, original, CLAVE_INCONSISTENTE);
             }

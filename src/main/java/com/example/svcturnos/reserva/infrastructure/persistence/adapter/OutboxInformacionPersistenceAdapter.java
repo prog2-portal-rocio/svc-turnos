@@ -38,7 +38,7 @@ public class OutboxInformacionPersistenceAdapter implements OutboxInformacionPor
         var solicitud = inbox.buscarPorId(solicitudId).orElseThrow(() -> new EnviarInformacionException(SOLICITUD_NO_DISPONIBLE));
         var ahora = clock.instant();
         var limite = SolicitudEnvioInformacion.validar(proceso, propietario, solicitud, ahora);
-        var anterior = jdbc.query("SELECT * FROM informacion_adicional_outbox WHERE solicitud_id=?", MAPPER, solicitudId);
+        var anterior = jdbc.query("SELECT * FROM informacion_adicional_outbox WHERE solicitud_id=? AND habilitada", MAPPER, solicitudId);
         if (!anterior.isEmpty()) {
             var existente = anterior.getFirst();
             // Sin el dato depurado no puede acreditarse que este número ya fue aceptado.
@@ -63,7 +63,7 @@ public class OutboxInformacionPersistenceAdapter implements OutboxInformacionPor
         var filas = jdbc.query("""
                 UPDATE informacion_adicional_outbox SET estado='PUBLICANDO', intentos=intentos+1, intento_id=?, concesion_hasta=?
                 WHERE event_id IN (
-                    SELECT event_id FROM informacion_adicional_outbox WHERE telefono IS NOT NULL AND vence_en>?
+                    SELECT event_id FROM informacion_adicional_outbox WHERE habilitada AND telefono IS NOT NULL AND vence_en>?
                         AND intentos<? AND ((estado IN ('PENDIENTE','INCIERTA') AND proximo_intento<=?)
                             OR (estado='PUBLICANDO' AND concesion_hasta<=?))
                     ORDER BY proximo_intento,event_id FOR UPDATE SKIP LOCKED LIMIT 1
@@ -78,7 +78,7 @@ public class OutboxInformacionPersistenceAdapter implements OutboxInformacionPor
         jdbc.update("""
                 UPDATE informacion_adicional_outbox SET estado=?, telefono=CASE WHEN ? THEN NULL ELSE telefono END,
                     proximo_intento=?, intento_id=NULL, concesion_hasta=NULL
-                WHERE event_id=? AND intento_id=? AND estado='PUBLICANDO'
+                WHERE event_id=? AND intento_id=? AND estado='PUBLICANDO' AND habilitada
                 """, enviada ? "ENVIADA" : "INCIERTA", enviada, Timestamp.from(ahora.plus(demora)), eventoId, intentoId);
     }
 

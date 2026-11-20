@@ -76,7 +76,7 @@ class EventoReservaDecoderTest {
         assertArrayEquals(bytes, mensaje.contenido());
     }
 
-    @ParameterizedTest @ValueSource(strings = {"AppointmentConfirmed", "AdditionalInformationRejected", "AppointmentProcessExpired", "AppointmentProcessInvalid", "AppointmentCancelled", "EventoFuturo"})
+    @ParameterizedTest @ValueSource(strings = {"EventoFuturo", "OtroEventoFuturo"})
     void otrosTiposSeReconocenSinAplicarSusReglasDeNegocio(String tipo) {
         var recibido = decoder.decodificar(mensaje(body.replace("AdditionalInformationRequested", tipo), "process-1", 0));
         assertNull(recibido.invalidez());

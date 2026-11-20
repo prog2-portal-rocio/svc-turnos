@@ -103,6 +103,17 @@ public class InboxReservasPersistenceAdapter implements InboxReservasPort {
     }
 
     @Override
+    public List<Long> buscarResultadosPendientes(long despuesDeId, int limite) {
+        if (despuesDeId < 0 || limite < 1 || limite > 1000) { throw new IllegalArgumentException("Lote de resultados inválido"); }
+        return jdbc.queryForList("""
+                SELECT id FROM eventos_reserva_inbox WHERE canonico AND id>:desde
+                    AND estado IN ('RECIBIDO','PENDIENTE_CORRELACION','PENDIENTE_TIPO')
+                    AND event_type IN ('AppointmentConfirmed','AdditionalInformationRejected','AppointmentProcessExpired',
+                        'AppointmentProcessInvalid','AppointmentCancelled') ORDER BY id LIMIT :limite
+                """, new MapSqlParameterSource("desde", despuesDeId).addValue("limite", limite), Long.class);
+    }
+
+    @Override
     public List<Long> buscarPendientes(int limite) {
         if (limite < 1 || limite > 1000) { throw new IllegalArgumentException("Límite de consulta entre 1 y 1000"); }
         return jdbc.queryForList("""

@@ -6,7 +6,7 @@ import com.example.svcturnos.reserva.infrastructure.persistence.entity.ProcesoRe
 public class ProcesoReservaMapper {
     public ProcesoReserva toDomain(ProcesoReservaEntity e) {
         return new ProcesoReserva(e.getId(), e.getUsuarioId(), e.getProfesionalId(), e.getFecha(), e.getHora(),
-                e.getEstado(), e.getHoldId(), e.getProcesoExternoId(), e.getVencimientoHold(), e.getCreadoEn(), e.getActualizadoEn(), e.getVersion());
+                e.getEstado(), e.getHoldId(), e.getProcesoExternoId(), e.getVencimientoHold(), e.getCreadoEn(), e.getActualizadoEn(), e.getVersion(), e.getReservaId(), e.getResultadoOcurridoEn());
     }
 
     public ProcesoReservaEntity toEntity(ProcesoReserva p) {
@@ -21,6 +21,8 @@ public class ProcesoReservaMapper {
     }
 
     public void actualizar(ProcesoReservaEntity e, ProcesoReserva p) {
+        e.setReservaId(p.reservaId());
+        e.setResultadoOcurridoEn(p.resultadoOcurridoEn());
         e.setEstado(p.estado());
         e.setHoldId(p.holdId());
         e.setProcesoExternoId(p.procesoExternoId());

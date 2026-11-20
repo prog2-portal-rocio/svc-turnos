@@ -27,7 +27,9 @@ class InformacionAdicionalTest {
         boolean datos = estado.requiereDatosHold();
         var otro = new ProcesoReserva(p.id(),p.usuarioId(),p.profesionalId(),p.fecha(),p.hora(),estado,
                 datos ? p.holdId() : null, datos ? p.procesoExternoId() : null, datos ? p.vencimientoHold() : null,
-                p.creadoEn(),p.actualizadoEn(),p.version());
+                p.creadoEn(),p.actualizadoEn(),p.version(),
+                estado == EstadoProcesoReserva.CONFIRMADA || estado == EstadoProcesoReserva.CANCELADA ? 8251L : null,
+                estado.resultadoDefinitivo() ? AHORA : null);
         var s = solicitud();
         assertThrows(EnviarInformacionException.class, () -> SolicitudEnvioInformacion.validar(otro,7L,s,AHORA));
     }

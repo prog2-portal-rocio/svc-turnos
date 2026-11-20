@@ -35,7 +35,8 @@ public class ReservasKafkaConsumerAdapter {
             throw new IllegalStateException("No se pudo conservar o correlacionar el evento de reservas");
         }
         if (resultado.estado() == EstadoEventoReserva.INVALIDO || resultado.estado() == EstadoEventoReserva.EVENT_ID_EN_CONFLICTO
-                || resultado.estado() == EstadoEventoReserva.CORRELACION_INCONSISTENTE) {
+                || resultado.estado() == EstadoEventoReserva.CORRELACION_INCONSISTENTE
+                || resultado.estado() == EstadoEventoReserva.REQUIERE_RECONCILIACION) {
             log.warn("Evento de reservas conservado para revisión: estado={}, particion={}, offset={}",
                     resultado.estado(), registro.partition(), registro.offset());
         }
