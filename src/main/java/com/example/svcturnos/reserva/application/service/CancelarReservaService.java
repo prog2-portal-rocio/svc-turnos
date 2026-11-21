@@ -97,7 +97,7 @@ public class CancelarReservaService implements CancelarReservaUseCase {
     }
     private void validarPagina(PaginaReservas respuesta, int pagina, long totalAnterior) {
         long inicio = (long) pagina * TAMANO_PAGINA;
-        long esperados = Math.min(TAMANO_PAGINA, Math.max(0L, respuesta.totalElements() - inicio));
+        long esperados = Math.clamp(respuesta.totalElements() - inicio, 0L, (long) TAMANO_PAGINA);
         if (respuesta.page() != pagina || respuesta.size() != TAMANO_PAGINA || respuesta.content().size() != esperados
                 || (totalAnterior >= 0 && totalAnterior != respuesta.totalElements())) {
             // No inferir ausencia con páginas truncadas, vacías prematuras o totales cambiantes.
