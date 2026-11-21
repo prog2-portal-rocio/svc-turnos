@@ -16,10 +16,12 @@ public class AplicarResultadoReservaPersistenceAdapter implements AplicarResulta
     private final JdbcTemplate jdbc;
     private final InboxReservasPort inbox;
     private final ProcesoReservaPersistencePort procesos;
+    private final CancelacionReservaPersistencePort cancelaciones;
     private final Clock clock;
     private final String grupo;
     public AplicarResultadoReservaPersistenceAdapter(JdbcTemplate jdbc, InboxReservasPort inbox,
-            ProcesoReservaPersistencePort procesos, Clock clock, @Value("${turnos.kafka.integration-group-id:}") String grupo) {
+            ProcesoReservaPersistencePort procesos, CancelacionReservaPersistencePort cancelaciones, Clock clock, @Value("${turnos.kafka.integration-group-id:}") String grupo) {
+        this.cancelaciones = cancelaciones;
         this.jdbc = jdbc; this.inbox = inbox; this.procesos = procesos; this.clock = clock; this.grupo = grupo;
     }
 
@@ -52,14 +54,22 @@ public class AplicarResultadoReservaPersistenceAdapter implements AplicarResulta
         if (decision == CORRELACION_INCONSISTENTE) { return marcar(recibido.id(), decision, proceso.id()); }
         var solicitud = solicitudCorrespondiente(evento, proceso);
         if (solicitud.estado() != SOLICITUD_REGISTRADA) { return marcar(recibido.id(), solicitud.estado(), proceso.id()); }
-        if (decision != RESULTADO_APLICADO) { return marcar(recibido.id(), decision, proceso.id()); }
+        if (decision != RESULTADO_APLICADO) {
+            if (decision == RESULTADO_OBSOLETO && resultado.tipo() == TipoResultadoReserva.CANCELACION) {
+                cancelaciones.confirmarDesdeEvento(proceso, resultado.reservationId(), evento.occurredAt());
+            }
+            return marcar(recibido.id(), decision, proceso.id());
+        }
         if (reservaAsignadaAOtroProceso(resultado.reservationId(), proceso.id())) {
             return marcar(recibido.id(), CORRELACION_INCONSISTENTE, proceso.id());
         }
         if (resultado.tipo() == TipoResultadoReserva.RECHAZO_TELEFONO && !hayRespuestaRechazable(solicitud.id(), evento)) {
             return marcar(recibido.id(), PENDIENTE_CORRELACION, proceso.id());
         }
-        procesos.guardar(proceso.registrarResultadoEvento(resultado, evento.occurredAt(), clock.instant()));
+        var actualizado = procesos.guardar(proceso.registrarResultadoEvento(resultado, evento.occurredAt(), clock.instant()));
+        if (resultado.tipo() == TipoResultadoReserva.CANCELACION) {
+            cancelaciones.confirmarDesdeEvento(actualizado, resultado.reservationId(), evento.occurredAt());
+        }
         deshabilitarRespuestas(proceso.id(), recibido.id(), resultado.tipo() == TipoResultadoReserva.RECHAZO_TELEFONO ? solicitud.id() : null);
         return marcar(recibido.id(), RESULTADO_APLICADO, proceso.id());
     }

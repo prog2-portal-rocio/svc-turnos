@@ -166,6 +166,22 @@ class ResultadosReservaIntegrationTest {
         assertEquals(primero,procesos.buscarPorId(local.id()).orElseThrow());
         assertEquals(1,jdbc.queryForObject("SELECT count(*) FROM eventos_reserva_inbox WHERE event_id=? AND estado='DUPLICADO'",Integer.class,body.path("eventId").asString()));
     }
+    @Test void cancelacionKafkaAcreditaIntentoRestInciertoYDeducidoSinReabrirEstado() {
+        recibirDirecto(evento(CONFIRMACION));
+        jdbc.update("""
+                INSERT INTO cancelaciones_reserva(proceso_externo_id,usuario_id,reserva_id,estado,solicitada_en,actualizada_en)
+                VALUES (?,?,?,'INCIERTA',?,?)
+                """, local.procesoExternoId(),local.usuarioId(),reservaExterna,
+                java.sql.Timestamp.from(AHORA),java.sql.Timestamp.from(AHORA));
+        var cancelacion=evento(CANCELACION);
+        assertEquals(EstadoEventoReserva.RESULTADO_APLICADO,recibirDirecto(cancelacion).estado());
+        assertEquals("CANCELADA",jdbc.queryForObject("SELECT estado FROM cancelaciones_reserva WHERE proceso_externo_id=?",
+                String.class,local.procesoExternoId()));
+        recibirDirecto(cancelacion);
+        assertEquals(EstadoProcesoReserva.CANCELADA,procesos.buscarPorId(local.id()).orElseThrow().estado());
+        assertEquals(EstadoEventoReserva.RESULTADO_OBSOLETO,recibirDirecto(evento(CONFIRMACION)).estado());
+    }
+
     @Test void cancelacionAdelantadaNoRetrocedeAlLlegarConfirmacion() {
         var cancelacion=evento(CANCELACION);assertEquals(EstadoEventoReserva.RESULTADO_APLICADO,recibirDirecto(cancelacion).estado());
         var cerrado=procesos.buscarPorId(local.id()).orElseThrow();
