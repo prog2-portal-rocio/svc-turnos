@@ -157,7 +157,7 @@ class ReservasKafkaInboxIntegrationTest {
         assertEquals(asociado, inbox.registrarCorrelacion(inboxId, new CorrelacionEvento(EstadoEventoReserva.PENDIENTE_CORRELACION, null)));
     }
 
-    @ParameterizedTest @ValueSource(strings = {"AppointmentConfirmed", "AdditionalInformationRejected", "AppointmentProcessExpired", "AppointmentProcessInvalid", "AppointmentCancelled", "EventoFuturo"})
+    @ParameterizedTest @ValueSource(strings = {"EventoFuturo", "OtroEventoFuturo"})
     void topicCompartidoConservaOtrosTiposSinEjecutarSusReglas(String tipo) throws Exception {
         String eventId = id(); String externo = id();
         String body = solicitud(eventId, externo, id()).replace("AdditionalInformationRequested", tipo);

@@ -4,10 +4,18 @@ import java.time.Instant;
 import java.util.List;
 
 public record EventoReserva(String eventId, String eventType, String reservationProcessId, String holdId,
-                             Instant occurredAt, int schemaVersion, SolicitudInformacionAdicional solicitud) {
+                             Instant occurredAt, int schemaVersion, SolicitudInformacionAdicional solicitud, ResultadoReserva resultado) {
     public static final String TIPO_SOLICITUD_INFORMACION = "AdditionalInformationRequested";
 
+    public EventoReserva(String eventId, String eventType, String reservationProcessId, String holdId,
+            Instant occurredAt, int schemaVersion, SolicitudInformacionAdicional solicitud) {
+        this(eventId, eventType, reservationProcessId, holdId, occurredAt, schemaVersion, solicitud, null);
+    }
+
     public EventoReserva {
+        if (resultado != null && (!resultado.tipo().evento().equals(eventType) || solicitud != null)) {
+            throw new IllegalArgumentException("Tipo de resultado inconsistente");
+        }
         obligatorio(eventId);
         obligatorio(eventType);
         obligatorio(reservationProcessId);
@@ -31,6 +39,8 @@ public record EventoReserva(String eventId, String eventType, String reservation
         }
         return new CorrelacionEvento(EstadoEventoReserva.SOLICITUD_REGISTRADA, proceso.id());
     }
+
+    public boolean esResultado() { return TipoResultadoReserva.deEvento(eventType).isPresent(); }
 
     public boolean esSolicitudInformacion() { return TIPO_SOLICITUD_INFORMACION.equals(eventType); }
 }

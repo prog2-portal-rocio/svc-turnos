@@ -8,13 +8,17 @@ import com.example.svcturnos.reserva.domain.ports.in.CorrelacionarSolicitudInfor
 import com.example.svcturnos.reserva.domain.ports.out.InboxReservasPort;
 import com.example.svcturnos.reserva.domain.ports.out.ProcesoReservaPersistencePort;
 import org.springframework.stereotype.Service;
+import com.example.svcturnos.reserva.domain.ports.in.ProcesarResultadoReservaUseCase;
 
 @Service
 public class CorrelacionarSolicitudInformacionService implements CorrelacionarSolicitudInformacionUseCase {
     private final InboxReservasPort inbox;
     private final ProcesoReservaPersistencePort procesos;
 
-    public CorrelacionarSolicitudInformacionService(InboxReservasPort inbox, ProcesoReservaPersistencePort procesos) {
+    private final ProcesarResultadoReservaUseCase resultados;
+    public CorrelacionarSolicitudInformacionService(InboxReservasPort inbox, ProcesoReservaPersistencePort procesos,
+            ProcesarResultadoReservaUseCase resultados) {
+        this.resultados = resultados;
         this.inbox = inbox;
         this.procesos = procesos;
     }
@@ -22,6 +26,7 @@ public class CorrelacionarSolicitudInformacionService implements CorrelacionarSo
     @Override
     public EventoInbox correlacionar(Long id) {
         var recibido = inbox.buscarPorId(id).orElseThrow(() -> new IllegalArgumentException("Recepción no encontrada"));
+        if (recibido.evento() != null && recibido.evento().esResultado()) { return resultados.procesar(id); }
         if (!recibido.pendienteDeCorrelacion()) { return recibido; }
         EventoReserva evento = recibido.evento();
         List<ProcesoReserva> candidatos = List.of();

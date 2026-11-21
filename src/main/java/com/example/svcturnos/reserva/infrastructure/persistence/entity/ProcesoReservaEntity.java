@@ -31,6 +31,14 @@ public class ProcesoReservaEntity {
     private Instant creadoEn;
     @Column(name = "actualizado_en", nullable = false)
     private Instant actualizadoEn;
+    @Column(name = "reserva_id")
+    private Long reservaId;
+    @Column(name = "resultado_ocurrido_en")
+    private Instant resultadoOcurridoEn;
+    public Long getReservaId() { return reservaId; }
+    public void setReservaId(Long value) { reservaId = value; }
+    public Instant getResultadoOcurridoEn() { return resultadoOcurridoEn; }
+    public void setResultadoOcurridoEn(Instant value) { resultadoOcurridoEn = value; }
     @Version
     private Long version;
 

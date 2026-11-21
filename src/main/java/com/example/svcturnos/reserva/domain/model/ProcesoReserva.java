@@ -7,9 +7,18 @@ import java.time.LocalTime;
 public record ProcesoReserva(
         Long id, Long usuarioId, Long profesionalId, LocalDate fecha, LocalTime hora,
         EstadoProcesoReserva estado, String holdId, String procesoExternoId, Instant vencimientoHold,
-        Instant creadoEn, Instant actualizadoEn, Long version) {
+        Instant creadoEn, Instant actualizadoEn, Long version, Long reservaId, Instant resultadoOcurridoEn) {
+
+    public ProcesoReserva(Long id, Long usuarioId, Long profesionalId, LocalDate fecha, LocalTime hora,
+            EstadoProcesoReserva estado, String holdId, String procesoExternoId, Instant vencimientoHold,
+            Instant creadoEn, Instant actualizadoEn, Long version) {
+        this(id, usuarioId, profesionalId, fecha, hora, estado, holdId, procesoExternoId, vencimientoHold,
+                creadoEn, actualizadoEn, version, null, null);
+    }
 
     public ProcesoReserva {
+        validarDatosResultado(estado, reservaId, resultadoOcurridoEn);
+        if (resultadoOcurridoEn != null) { resultadoOcurridoEn = resultadoOcurridoEn.truncatedTo(java.time.temporal.ChronoUnit.MICROS); }
         positivo(usuarioId);
         positivo(profesionalId);
         if (fecha == null || hora == null || estado == null || creadoEn == null || actualizadoEn == null) {
@@ -22,10 +31,7 @@ public record ProcesoReserva(
         if (vencimientoHold != null) {
             vencimientoHold = vencimientoHold.truncatedTo(java.time.temporal.ChronoUnit.MICROS);
         }
-        if (actualizadoEn.isBefore(creadoEn) || (version != null && version < 0)
-                || (id != null && id <= 0) || ((id == null) != (version == null))) {
-            throw new IllegalArgumentException("Identidad, versión o auditoría inválidas");
-        }
+        validarIdentidadYAuditoria(id, version, creadoEn, actualizadoEn);
         boolean datosHold = holdId != null && !holdId.isBlank()
                 && procesoExternoId != null && !procesoExternoId.isBlank() && vencimientoHold != null;
         if (estado.requiereDatosHold() && !datosHold) {
@@ -35,6 +41,22 @@ public record ProcesoReserva(
                 && (holdId != null || procesoExternoId != null || vencimientoHold != null)) {
             throw new IllegalArgumentException("Un proceso sin hold registrado no puede contener datos de hold");
         }
+    }
+
+    private static void validarIdentidadYAuditoria(Long id, Long version, Instant creadoEn, Instant actualizadoEn) {
+        if (actualizadoEn.isBefore(creadoEn) || (version != null && version < 0)
+                || (id != null && id <= 0) || ((id == null) != (version == null))) {
+            throw new IllegalArgumentException("Identidad, versión o auditoría inválidas");
+        }
+    }
+
+    private static void validarDatosResultado(EstadoProcesoReserva estado, Long reservaId, Instant resultadoOcurridoEn) {
+        boolean reservaDefinitiva = estado == EstadoProcesoReserva.CONFIRMADA || estado == EstadoProcesoReserva.CANCELADA;
+        if (reservaDefinitiva != (reservaId != null) || (reservaId != null && reservaId <= 0)) {
+            throw new IllegalArgumentException("Identificador de reserva inconsistente");
+        }
+        if ((reservaDefinitiva || estado == EstadoProcesoReserva.PROCESO_EXPIRADO || estado == EstadoProcesoReserva.PROCESO_INVALIDO)
+                && resultadoOcurridoEn == null) { throw new IllegalArgumentException("El resultado requiere fecha de ocurrencia"); }
     }
 
     private static void positivo(Long valor) {
@@ -52,7 +74,7 @@ public record ProcesoReserva(
     /** Un resultado desconocido no vence localmente; un hold conocido respeta su expiresAt. */
     public boolean impideNuevoHold(Instant ahora) {
         return switch (estado) {
-            case HOLD_SOLICITADO, CONFIRMACION_SOLICITADA, CONFIRMACION_INCIERTA, ESPERANDO_TELEFONO -> true;
+            case HOLD_SOLICITADO, CONFIRMACION_SOLICITADA, CONFIRMACION_INCIERTA, ESPERANDO_TELEFONO, CONFIRMADA, PROCESO_INVALIDO -> true;
             case HOLD_REGISTRADO, CONFIRMACION_RECHAZADA -> vencimientoHold.isAfter(ahora);
             default -> false;
         };
@@ -68,6 +90,8 @@ public record ProcesoReserva(
     }
 
     public boolean puedeTransicionarA(EstadoProcesoReserva siguiente) {
+        if (siguiente == EstadoProcesoReserva.CANCELADA && estado == EstadoProcesoReserva.CONFIRMADA) { return true; }
+        if (!estado.resultadoDefinitivo() && estado.requiereDatosHold() && esCierreKafka(siguiente)) { return true; }
         return switch (estado) {
             // Se conserva la transición anterior para procesos y consumidores locales existentes.
             case CREADO -> siguiente == EstadoProcesoReserva.HOLD_SOLICITADO || siguiente == EstadoProcesoReserva.HOLD_REGISTRADO;
@@ -77,8 +101,14 @@ public record ProcesoReserva(
             case CONFIRMACION_SOLICITADA -> siguiente == EstadoProcesoReserva.ESPERANDO_TELEFONO
                     || siguiente == EstadoProcesoReserva.CONFIRMACION_INCIERTA || siguiente == EstadoProcesoReserva.CONFIRMACION_RECHAZADA
                     || siguiente == EstadoProcesoReserva.HOLD_VENCIDO || siguiente == EstadoProcesoReserva.HOLD_NO_RECUPERABLE;
-            case HOLD_RECHAZADO, CONFIRMACION_INCIERTA, ESPERANDO_TELEFONO, HOLD_VENCIDO, HOLD_NO_RECUPERABLE -> false;
+            case HOLD_RECHAZADO, CONFIRMACION_INCIERTA, ESPERANDO_TELEFONO, HOLD_VENCIDO, HOLD_NO_RECUPERABLE,
+                    CONFIRMADA, CANCELADA, PROCESO_EXPIRADO, PROCESO_INVALIDO -> false;
         };
+    }
+
+    private static boolean esCierreKafka(EstadoProcesoReserva estado) {
+        return estado == EstadoProcesoReserva.CONFIRMADA || estado == EstadoProcesoReserva.CANCELADA
+                || estado == EstadoProcesoReserva.PROCESO_EXPIRADO || estado == EstadoProcesoReserva.PROCESO_INVALIDO;
     }
 
     private ProcesoReserva cambiarEstado(EstadoProcesoReserva siguiente) {
@@ -97,6 +127,12 @@ public record ProcesoReserva(
                 creadoEn, Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS), version);
     }
     public boolean admiteProgreso(ProcesoReserva siguiente) {
+        if (siguiente.resultadoOcurridoEn() != null && (estado != siguiente.estado()
+                || !java.util.Objects.equals(resultadoOcurridoEn, siguiente.resultadoOcurridoEn()))) {
+            return admiteResultado(siguiente);
+        }
+        if (!java.util.Objects.equals(reservaId, siguiente.reservaId())
+                || !java.util.Objects.equals(resultadoOcurridoEn, siguiente.resultadoOcurridoEn())) { return false; }
         if (!puedeTransicionarA(siguiente.estado())) { return false; }
         if (!estado.requiereDatosHold()) { return true; }
         return holdId.equals(siguiente.holdId()) && procesoExternoId.equals(siguiente.procesoExternoId())
@@ -138,4 +174,28 @@ public record ProcesoReserva(
         if (!admiteProgreso(siguiente)) { throw new IllegalStateException("Progreso de confirmación incompatible"); }
         return siguiente;
     }
+    private boolean admiteResultado(ProcesoReserva siguiente) {
+        if (!estado.requiereDatosHold() || !holdId.equals(siguiente.holdId())
+                || !procesoExternoId.equals(siguiente.procesoExternoId()) || siguiente.vencimientoHold().isAfter(vencimientoHold)) { return false; }
+        if (estado.resultadoDefinitivo()) {
+            return estado == EstadoProcesoReserva.CONFIRMADA && siguiente.estado() == EstadoProcesoReserva.CANCELADA
+                    && reservaId.equals(siguiente.reservaId()) && (resultadoOcurridoEn == null
+                    || !siguiente.resultadoOcurridoEn().isBefore(resultadoOcurridoEn));
+        }
+        return siguiente.estado() == EstadoProcesoReserva.CONFIRMADA || siguiente.estado() == EstadoProcesoReserva.CANCELADA
+                || siguiente.estado() == EstadoProcesoReserva.PROCESO_EXPIRADO || siguiente.estado() == EstadoProcesoReserva.PROCESO_INVALIDO
+                || (siguiente.estado() == EstadoProcesoReserva.ESPERANDO_TELEFONO && (resultadoOcurridoEn == null
+                    || siguiente.resultadoOcurridoEn().isAfter(resultadoOcurridoEn)));
+    }
+
+    public ProcesoReserva registrarResultadoEvento(ResultadoReserva resultado, Instant ocurrido, Instant ahora) {
+        Instant limite = vencimientoHold;
+        if (resultado.expiresAt() != null && resultado.expiresAt().isBefore(limite)) { limite = resultado.expiresAt(); }
+        var siguiente = new ProcesoReserva(id, usuarioId, profesionalId, fecha, hora, resultado.estadoDestino(), holdId,
+                procesoExternoId, limite, creadoEn, ahora.isBefore(actualizadoEn) ? actualizadoEn : ahora, version,
+                resultado.reservationId(), ocurrido);
+        if (!admiteResultado(siguiente)) { throw new IllegalStateException("Transición de resultado no permitida"); }
+        return siguiente;
+    }
+
 }

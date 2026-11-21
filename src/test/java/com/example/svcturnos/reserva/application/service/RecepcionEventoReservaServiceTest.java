@@ -55,15 +55,15 @@ class RecepcionEventoReservaServiceTest {
         when(inbox.buscarPorId(1L)).thenReturn(Optional.of(original));
         when(procesos.buscarPorProcesoExternoId("p")).thenReturn(List.of());
         when(inbox.registrarCorrelacion(eq(1L), any())).thenReturn(resultado);
-        var servicio = new CorrelacionarSolicitudInformacionService(inbox, procesos);
+        var servicio = new CorrelacionarSolicitudInformacionService(inbox, procesos, mock(com.example.svcturnos.reserva.domain.ports.in.ProcesarResultadoReservaUseCase.class));
         assertSame(resultado, servicio.correlacionar(1L));
         verify(procesos, never()).guardar(any());
     }
 
     @Test void eventoDeOtroTipoNoConsultaNiActualizaReservas() {
-        var otro = new EventoReserva("e", "AppointmentConfirmed", "p", "h", recepcion.evento().occurredAt(), 1, null);
+        var otro = new EventoReserva("e", "EventoFuturo", "p", "h", recepcion.evento().occurredAt(), 1, null);
         when(inbox.buscarPorId(1L)).thenReturn(Optional.of(new EventoInbox(1L, otro, EstadoEventoReserva.RECIBIDO, null, null)));
-        var servicio = new CorrelacionarSolicitudInformacionService(inbox, procesos);
+        var servicio = new CorrelacionarSolicitudInformacionService(inbox, procesos, mock(com.example.svcturnos.reserva.domain.ports.in.ProcesarResultadoReservaUseCase.class));
         servicio.correlacionar(1L);
         verifyNoInteractions(procesos);
         verify(inbox).registrarCorrelacion(1L, new CorrelacionEvento(EstadoEventoReserva.PENDIENTE_TIPO, null));
