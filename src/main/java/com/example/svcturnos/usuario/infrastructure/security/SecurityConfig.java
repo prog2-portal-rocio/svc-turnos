@@ -46,6 +46,10 @@ public class SecurityConfig {
                                 org.springframework.http.HttpMethod.POST,
                                 "/api/authenticate"
                         ).permitAll()
+                        .requestMatchers(
+                                org.springframework.http.HttpMethod.GET,
+                                "/api/disponibilidad"
+                        ).hasAuthority("SCOPE_catalogo:read")
                         .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer(oauth2 ->
