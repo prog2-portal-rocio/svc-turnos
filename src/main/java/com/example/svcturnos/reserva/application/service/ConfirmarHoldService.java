@@ -26,10 +26,12 @@ public class ConfirmarHoldService implements ConfirmarHoldUseCase {
     private final InboxReservasPort inbox;
     private final CorrelacionarSolicitudInformacionUseCase correlacionar;
     private final Clock clock;
+    private final RecuperarConfirmacionService recuperacion;
 
     public ConfirmarHoldService(UsuarioAutenticadoPort usuario, ProcesoReservaPersistencePort procesos,
             ConfirmarHoldRemotoPort remoto, InboxReservasPort inbox,
-            CorrelacionarSolicitudInformacionUseCase correlacionar, Clock clock) {
+            CorrelacionarSolicitudInformacionUseCase correlacionar, Clock clock, RecuperarConfirmacionService recuperacion) {
+        this.recuperacion = recuperacion;
         this.usuario = usuario;
         this.procesos = procesos;
         this.remoto = remoto;
@@ -45,6 +47,9 @@ public class ConfirmarHoldService implements ConfirmarHoldUseCase {
         if (procesoId == null || procesoId <= 0) { throw new IllegalArgumentException("Identificador inválido"); }
         var proceso = buscar(procesoId);
         if (!proceso.usuarioId().equals(paciente.usuarioId())) { throw new ConfirmarHoldException(PROCESO_AJENO); }
+        if (proceso.confirmacionPendienteDeEvidencia()) {
+            proceso = recuperarConfirmacion(proceso);
+        }
         if (proceso.estado() == ESPERANDO_TELEFONO) { return recuperarCorrelacion(proceso); }
         if (proceso.estado() != HOLD_REGISTRADO && proceso.estado() != CONFIRMACION_RECHAZADA) {
             throw new ConfirmarHoldException(ESTADO_INCOMPATIBLE, null, procesoId);
@@ -55,6 +60,14 @@ public class ConfirmarHoldService implements ConfirmarHoldUseCase {
         comprobarVigencia(intento);
         var aceptado = enviarYRegistrar(intento, paciente);
         return recuperarCorrelacion(aceptado);
+    }
+
+    private ProcesoReserva recuperarConfirmacion(ProcesoReserva proceso) {
+        try {
+            return recuperacion.recuperar(proceso);
+        } catch (RuntimeException _) {
+            throw new ConfirmarHoldException(PERSISTENCIA_FALLIDA, null, proceso.id());
+        }
     }
 
     private ProcesoReserva buscar(Long id) {
@@ -92,7 +105,21 @@ public class ConfirmarHoldService implements ConfirmarHoldUseCase {
             throw error.conProceso(intento.id());
         }
         // Si falla esta escritura, el marcador CONFIRMACION_SOLICITADA impide otro POST.
-        return guardar(aceptado);
+        return guardarAceptacion(intento, aceptado);
+    }
+
+    private ProcesoReserva guardarAceptacion(ProcesoReserva intento, ProcesoReserva aceptado) {
+        try {
+            return guardar(aceptado);
+        } catch (ConfirmarHoldException error) {
+            if (error.getMotivo() != ESTADO_INCOMPATIBLE) { throw error; }
+            var actual = buscar(intento.id());
+            // Kafka pudo recuperar la aceptación mientras el POST estaba en curso.
+            if (actual.estado() == ESPERANDO_TELEFONO && actual.holdId().equals(aceptado.holdId())
+                    && actual.procesoExternoId().equals(aceptado.procesoExternoId())
+                    && !actual.vencimientoHold().isAfter(aceptado.vencimientoHold())) { return actual; }
+            throw error;
+        }
     }
 
     private void registrarFallo(ProcesoReserva intento, ConfirmarHoldException error) {

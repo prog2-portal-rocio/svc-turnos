@@ -1,6 +1,7 @@
 package com.example.svcturnos.reserva.infrastructure.web;
 
 import com.example.svcturnos.reserva.application.service.ConfirmarHoldService;
+import com.example.svcturnos.reserva.application.service.RecuperarConfirmacionService;
 import com.example.svcturnos.reserva.domain.exception.ConfirmarHoldException;
 import com.example.svcturnos.reserva.domain.model.*;
 import com.example.svcturnos.reserva.domain.ports.in.CorrelacionarSolicitudInformacionUseCase;
@@ -30,7 +31,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(ConfirmacionHoldController.class)
-@Import({SecurityConfig.class, JwtConfig.class, ConfirmarHoldService.class, UsuarioAutenticadoAdapter.class,
+@Import({SecurityConfig.class, JwtConfig.class, ConfirmarHoldService.class,
+        RecuperarConfirmacionService.class, UsuarioAutenticadoAdapter.class,
         HoldExceptionHandler.class, ConfirmacionHoldExceptionHandler.class})
 @ContextConfiguration(initializers = JwtTestContextInitializer.class)
 class ConfirmacionHoldControllerTest {
@@ -87,6 +89,22 @@ class ConfirmacionHoldControllerTest {
         mvc.perform(post(URL).header("Authorization", "Bearer " + token(8L))).andExpect(status().isForbidden());
         verifyNoInteractions(remoto);
         verify(procesos, never()).guardar(any());
+    }
+
+    @ParameterizedTest @EnumSource(value = EstadoProcesoReserva.class, names = {"CONFIRMACION_INCIERTA", "CONFIRMACION_SOLICITADA"})
+    void propietarioRecuperaConEvidenciaDurableSinPostExterno(EstadoProcesoReserva estado) throws Exception {
+        identidadYHold();
+        var proceso = new ProcesoReserva(42L, 7L, 15L, LocalDate.of(2026, 12, 1), LocalTime.of(9, 30), estado,
+                "hold", "externo", ahora.plusSeconds(300), ahora.minusSeconds(60), ahora, 1L);
+        when(procesos.buscarPorId(42L)).thenReturn(Optional.of(proceso));
+        var solicitud = new EventoReserva("solicitud-persistida", EventoReserva.TIPO_SOLICITUD_INFORMACION,
+                "externo", "hold", ahora, 1, new SolicitudInformacionAdicional("PHONE_NUMBER", "Ingrese telefono", ahora.plusSeconds(200)));
+        when(inbox.buscarSolicitudesPorProceso(42L)).thenReturn(
+                List.of(new EventoInbox(10L, solicitud, EstadoEventoReserva.SOLICITUD_REGISTRADA, 42L, null)));
+        mvc.perform(post(URL).header("Authorization", "Bearer " + token(7L)))
+                .andExpect(status().isAccepted()).andExpect(jsonPath("$.estado").value("ESPERANDO_TELEFONO"))
+                .andExpect(jsonPath("$.expiresAt").value("2026-11-19T20:03:20Z"));
+        verifyNoInteractions(remoto);
     }
 
     @Test void usuarioInactivoNoPuedeConfirmar() throws Exception {

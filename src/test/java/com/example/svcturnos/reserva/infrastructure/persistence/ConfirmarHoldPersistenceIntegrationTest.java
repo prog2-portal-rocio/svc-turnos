@@ -132,6 +132,26 @@ class ConfirmarHoldPersistenceIntegrationTest {
         verify(remoto, times(1)).confirmar(hold.holdId(), paciente);
     }
 
+    @ParameterizedTest @EnumSource(value = EstadoProcesoReserva.class, names = {"CONFIRMACION_INCIERTA", "CONFIRMACION_SOLICITADA"})
+    void solicitudVigenteRecuperaConfirmacionPersistidaSinOtroPost(EstadoProcesoReserva estado) {
+        var iniciado = procesos.guardar(hold.solicitarConfirmacion(RELOJ.instant()));
+        if (estado == EstadoProcesoReserva.CONFIRMACION_INCIERTA) {
+            procesos.guardar(iniciado.registrarResultadoConfirmacion(estado, RELOJ.instant()));
+        }
+        var json = solicitud(UUID.randomUUID().toString(), hold.procesoExternoId(), hold.holdId())
+                .replace("2026-09-10T14:44:50Z", RELOJ.instant().plusSeconds(200).toString())
+                .replace("2026-09-10T14:35:10Z", RELOJ.instant().toString());
+        var evento = recibir.recibir(decoder.decodificar(mensaje(json, hold.procesoExternoId(), OFFSET.incrementAndGet())));
+        assertEquals(EstadoEventoReserva.SOLICITUD_REGISTRADA, evento.estado());
+        var recuperado = procesos.buscarPorId(procesoId).orElseThrow();
+        assertEquals(EstadoProcesoReserva.ESPERANDO_TELEFONO, recuperado.estado());
+        assertEquals(RELOJ.instant().plusSeconds(200), recuperado.vencimientoHold());
+        assertNull(recuperado.reservaId());
+        assertEquals(recuperado, servicio.confirmar(procesoId));
+        assertEquals(recuperado.vencimientoHold(), SolicitudEnvioInformacion.validar(recuperado, propietario, evento, RELOJ.instant()));
+        verifyNoInteractions(remoto);
+    }
+
     @Test void falloPostgresPosteriorAl202ConservaIntencionYBloqueaOtroPost() {
         jdbc.execute("""
                 CREATE OR REPLACE FUNCTION fallo_confirmacion() RETURNS trigger AS $$
@@ -152,14 +172,17 @@ class ConfirmarHoldPersistenceIntegrationTest {
         verify(remoto, times(1)).confirmar(hold.holdId(), paciente);
     }
 
-    @Test void eventoDuranteElPostQuedaCorrelacionadoSinAdelantarEstadoRest() {
+    @Test void eventoVigenteDuranteElPostRecuperaLaAceptacionInicial() {
         String eventId = UUID.randomUUID().toString();
-        var recepcion = decoder.decodificar(mensaje(solicitud(eventId, hold.procesoExternoId(), hold.holdId()),
+        var json = solicitud(eventId, hold.procesoExternoId(), hold.holdId())
+                .replace("2026-09-10T14:44:50Z", RELOJ.instant().plusSeconds(200).toString())
+                .replace("2026-09-10T14:35:10Z", RELOJ.instant().toString());
+        var recepcion = decoder.decodificar(mensaje(json,
                 hold.procesoExternoId(), OFFSET.incrementAndGet()));
         when(remoto.confirmar(any(), any())).thenAnswer(invocation -> {
             var evento = recibir.recibir(recepcion);
             assertEquals(EstadoEventoReserva.SOLICITUD_REGISTRADA, evento.estado());
-            assertEquals(EstadoProcesoReserva.CONFIRMACION_SOLICITADA, procesos.buscarPorId(hold.id()).orElseThrow().estado());
+            assertEquals(EstadoProcesoReserva.ESPERANDO_TELEFONO, procesos.buscarPorId(hold.id()).orElseThrow().estado());
             return respuesta();
         });
         assertEquals(EstadoProcesoReserva.ESPERANDO_TELEFONO, servicio.confirmar(procesoId).estado());
