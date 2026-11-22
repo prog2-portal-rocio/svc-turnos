@@ -10,6 +10,8 @@ services:
       - "127.0.0.1:${TURNOS_DB_PORT:-5433}:5432"
     volumes:
       - turnos_postgres_data:/var/lib/postgresql
+    networks:
+      - default
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
       interval: 10s
@@ -20,6 +22,9 @@ services:
   svc-turnos:
     build: .
     restart: unless-stopped
+    networks:
+      - default
+      - integracion
     # Permite leer una privada 0600 del usuario host sin ampliar sus permisos.
     user: "${TURNOS_CONTAINER_UID:-10001}:${TURNOS_CONTAINER_GID:-10001}"
     depends_on:
@@ -31,7 +36,7 @@ services:
       TURNOS_DB_PASSWORD: ${TURNOS_DB_PASSWORD:?Definir TURNOS_DB_PASSWORD en .env o en el entorno}
       TURNOS_JWT_PRIVATE_KEY_LOCATION: file:/run/keys/turnos-private.pem
       TURNOS_JWT_PUBLIC_KEY_LOCATION: file:/run/keys/turnos-public.pem
-      CATALOGO_BASE_URL: ${CATALOGO_BASE_URL:-http://host.docker.internal:8081}
+      CATALOGO_BASE_URL: ${CATALOGO_BASE_URL:-http://svc-catalogo:8080}
       CATALOGO_CONNECT_TIMEOUT: ${CATALOGO_CONNECT_TIMEOUT:-3s}
       CATALOGO_RESPONSE_TIMEOUT: ${CATALOGO_RESPONSE_TIMEOUT:-5s}
       CATEDRA_BASE_URL: ${CATEDRA_BASE_URL:-}
@@ -72,3 +77,9 @@ services:
 
 volumes:
   turnos_postgres_data:
+
+networks:
+  default: {}
+  integracion:
+    external: true
+    name: backends-integracion
