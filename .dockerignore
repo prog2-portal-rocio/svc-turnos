@@ -1,0 +1,18 @@
+# Contexto permitido: solo los archivos necesarios para construir el JAR.
+**
+!Dockerfile
+!pom.xml
+!mvnw
+!.mvn/
+!.mvn/wrapper/
+!.mvn/wrapper/maven-wrapper.properties
+!src/
+!src/main/
+!src/main/**
+# No enviar claves ni configuracion privada al constructor.
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/*.jks
+**/.env*
