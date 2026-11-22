@@ -86,7 +86,8 @@ class RecuperacionConfirmacionTest {
 
     @Test void perdidaDe202SeRecuperaConKafkaYPermiteTelefonoSinOtroPost() {
         when(remoto.confirmar(any(), any())).thenThrow(new ConfirmarHoldException(ConfirmarHoldException.Motivo.RESULTADO_INCIERTO));
-        assertThrows(ConfirmarHoldException.class, () -> confirmador().confirmar(42L));
+        var servicio = confirmador();
+        assertThrows(ConfirmarHoldException.class, () -> servicio.confirmar(42L));
         assertEquals(CONFIRMACION_INCIERTA, almacen.get().estado());
         var recibido = recibirSolicitud();
         assertEquals(EstadoEventoReserva.SOLICITUD_REGISTRADA, recibido.estado());
@@ -105,7 +106,8 @@ class RecuperacionConfirmacionTest {
     @Test void falloPosteriorAl202ConservaIntencionYKafkaRecupera() {
         fallarAceptacion.set(true);
         when(remoto.confirmar(any(), any())).thenReturn(new ConfirmacionInicialAceptada("externo", AHORA.plusSeconds(200)));
-        var error = assertThrows(ConfirmarHoldException.class, () -> confirmador().confirmar(42L));
+        var servicio = confirmador();
+        var error = assertThrows(ConfirmarHoldException.class, () -> servicio.confirmar(42L));
         assertEquals(ConfirmarHoldException.Motivo.PERSISTENCIA_FALLIDA, error.getMotivo());
         assertEquals(CONFIRMACION_SOLICITADA, almacen.get().estado());
         recibirSolicitud();
@@ -150,7 +152,8 @@ class RecuperacionConfirmacionTest {
 
     @Test void sinEvidenciaConservaIncertidumbreYNoReenviaPost() {
         almacen.set(conEstado(CONFIRMACION_INCIERTA));
-        assertThrows(ConfirmarHoldException.class, () -> confirmador().confirmar(42L));
+        var servicio = confirmador();
+        assertThrows(ConfirmarHoldException.class, () -> servicio.confirmar(42L));
         assertEquals(CONFIRMACION_INCIERTA, almacen.get().estado());
         verify(procesos, never()).guardar(any());
         verifyNoInteractions(remoto);
@@ -167,7 +170,8 @@ class RecuperacionConfirmacionTest {
     @Test void propietarioAjenoNoRecuperaNiConsultaEvidencia() {
         almacen.set(conEstado(CONFIRMACION_INCIERTA));
         when(usuario.obtenerPaciente()).thenReturn(new PacienteReserva(8L, "Otra", "Persona"));
-        var error = assertThrows(ConfirmarHoldException.class, () -> confirmador().confirmar(42L));
+        var servicio = confirmador();
+        var error = assertThrows(ConfirmarHoldException.class, () -> servicio.confirmar(42L));
         assertEquals(ConfirmarHoldException.Motivo.PROCESO_AJENO, error.getMotivo());
         verifyNoInteractions(inbox, remoto);
         verify(procesos, never()).guardar(any());
