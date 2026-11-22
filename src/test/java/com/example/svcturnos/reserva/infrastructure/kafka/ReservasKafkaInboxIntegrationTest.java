@@ -146,7 +146,8 @@ class ReservasKafkaInboxIntegrationTest {
         esperarEstado(offset, "PENDIENTE_CORRELACION");
         esperarCommit(offset);
         long inboxId = original(eventId);
-        assertTrue(inbox.buscarPendientes(1000).contains(inboxId));
+        assertTrue(inbox.buscarSolicitudesPendientes(externo, hold, 0,
+                inbox.ultimoIdSolicitudPendiente(externo, hold), 100).contains(inboxId));
         var local = proceso(externo, hold);
         var asociado = correlacionar.correlacionar(inboxId);
         assertEquals(EstadoEventoReserva.SOLICITUD_REGISTRADA, asociado.estado());
