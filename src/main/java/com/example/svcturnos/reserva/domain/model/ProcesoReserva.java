@@ -198,4 +198,14 @@ public record ProcesoReserva(
         return siguiente;
     }
 
+    /** Aplica evidencia REST definitiva sin fabricar un evento Kafka ni reabrir estados finales. */
+    public ProcesoReserva registrarCancelacionRest(Long reserva, Instant ocurrido, Instant ahora) {
+        if (estado == EstadoProcesoReserva.CANCELADA && java.util.Objects.equals(reservaId, reserva)) { return this; }
+        var siguiente = new ProcesoReserva(id, usuarioId, profesionalId, fecha, hora, EstadoProcesoReserva.CANCELADA,
+                holdId, procesoExternoId, vencimientoHold, creadoEn,
+                ahora.isBefore(actualizadoEn) ? actualizadoEn : ahora, version, reserva, ocurrido);
+        if (!admiteResultado(siguiente)) { throw new IllegalStateException("Cancelacion incompatible con el proceso local"); }
+        return siguiente;
+    }
+
 }
