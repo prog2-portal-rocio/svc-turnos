@@ -11,4 +11,5 @@ public interface ProcesoReservaJpaRepository extends JpaRepository<ProcesoReserv
             Long usuarioId, Long profesionalId, LocalDate fecha, LocalTime hora);
     List<ProcesoReservaEntity> findByProcesoExternoIdOrderByIdAsc(String procesoExternoId);
     List<ProcesoReservaEntity> findByUsuarioIdOrderByIdAsc(Long usuarioId);
+    List<ProcesoReservaEntity> findByProcesoExternoIdInOrderByIdAsc(List<String> procesoExternoIds);
 }

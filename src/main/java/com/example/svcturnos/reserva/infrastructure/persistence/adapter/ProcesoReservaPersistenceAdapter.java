@@ -117,4 +117,11 @@ public class ProcesoReservaPersistenceAdapter implements ProcesoReservaPersisten
     public List<ProcesoReserva> buscarPorProcesoExternoId(String procesoExternoId) {
         return repository.findByProcesoExternoIdOrderByIdAsc(procesoExternoId).stream().map(mapper::toDomain).toList();
     }
+    @Override
+    public List<ProcesoReserva> buscarPorProcesosExternos(List<String> procesoExternoIds) {
+        if (procesoExternoIds.isEmpty()) { return List.of(); }
+        return repository.findByProcesoExternoIdInOrderByIdAsc(procesoExternoIds).stream()
+                .map(mapper::toDomain).toList();
+    }
+
 }

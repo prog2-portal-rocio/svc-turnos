@@ -10,4 +10,5 @@ public interface ProcesoReservaPersistencePort {
     Optional<ProcesoReserva> buscarPorId(Long id);
     List<ProcesoReserva> buscarPorProcesoExternoId(String procesoExternoId);
     List<ProcesoReserva> buscarPorUsuario(Long usuarioId);
+    List<ProcesoReserva> buscarPorProcesosExternos(List<String> procesoExternoIds);
 }
