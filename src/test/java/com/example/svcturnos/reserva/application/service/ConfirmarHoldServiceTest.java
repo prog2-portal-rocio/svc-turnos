@@ -23,7 +23,7 @@ class ConfirmarHoldServiceTest {
     final Instant ahora = Instant.parse("2026-11-19T12:00:00Z");
     final PacienteReserva paciente = new PacienteReserva(7L, "Juan", "Perez");
     final ConfirmarHoldService servicio = new ConfirmarHoldService(usuario, procesos, remoto, inbox, correlacionar,
-            Clock.fixed(ahora, ZoneOffset.UTC));
+            Clock.fixed(ahora, ZoneOffset.UTC), new RecuperarConfirmacionService(inbox, procesos, Clock.fixed(ahora, ZoneOffset.UTC)));
     ProcesoReserva hold;
 
     @BeforeEach void preparar() {
@@ -169,7 +169,8 @@ class ConfirmarHoldServiceTest {
     @Test void holdQueVenceMientrasSeGuardaLaIntencionNoEnviaPost() {
         var reloj = mock(Clock.class);
         when(reloj.instant()).thenReturn(ahora, ahora, ahora.plusSeconds(300));
-        var conDemora = new ConfirmarHoldService(usuario, procesos, remoto, inbox, correlacionar, reloj);
+        var conDemora = new ConfirmarHoldService(usuario, procesos, remoto, inbox, correlacionar, reloj,
+                new RecuperarConfirmacionService(inbox, procesos, reloj));
         var error = assertThrows(ConfirmarHoldException.class, () -> conDemora.confirmar(42L));
         assertEquals(ConfirmarHoldException.Motivo.HOLD_VENCIDO, error.getMotivo());
         verifyNoInteractions(remoto);

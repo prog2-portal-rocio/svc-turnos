@@ -101,7 +101,8 @@ public record ProcesoReserva(
             case CONFIRMACION_SOLICITADA -> siguiente == EstadoProcesoReserva.ESPERANDO_TELEFONO
                     || siguiente == EstadoProcesoReserva.CONFIRMACION_INCIERTA || siguiente == EstadoProcesoReserva.CONFIRMACION_RECHAZADA
                     || siguiente == EstadoProcesoReserva.HOLD_VENCIDO || siguiente == EstadoProcesoReserva.HOLD_NO_RECUPERABLE;
-            case HOLD_RECHAZADO, CONFIRMACION_INCIERTA, ESPERANDO_TELEFONO, HOLD_VENCIDO, HOLD_NO_RECUPERABLE,
+            case CONFIRMACION_INCIERTA -> siguiente == EstadoProcesoReserva.ESPERANDO_TELEFONO;
+            case HOLD_RECHAZADO, ESPERANDO_TELEFONO, HOLD_VENCIDO, HOLD_NO_RECUPERABLE,
                     CONFIRMADA, CANCELADA, PROCESO_EXPIRADO, PROCESO_INVALIDO -> false;
         };
     }
@@ -154,6 +155,24 @@ public record ProcesoReserva(
         Instant limite = vencimiento.isAfter(vencimientoHold) ? vencimientoHold : vencimiento;
         return progresoConHold(EstadoProcesoReserva.ESPERANDO_TELEFONO,
                 limite.truncatedTo(java.time.temporal.ChronoUnit.MICROS), ahora);
+    }
+
+    /** La solicitud canónica acredita aceptación inicial, nunca confirmación definitiva. */
+    public ProcesoReserva recuperarConfirmacion(EventoInbox evidencia, Instant ahora) {
+        if (!confirmacionPendienteDeEvidencia() || id == null || evidencia == null || evidencia.id() == null || evidencia.originalId() != null
+                || evidencia.estado() != EstadoEventoReserva.SOLICITUD_REGISTRADA
+                || !java.util.Objects.equals(id, evidencia.procesoLocalId())) { return this; }
+        var evento = evidencia.evento();
+        if (evento == null || !evento.esSolicitudInformacion()
+                || !procesoExternoId.equals(evento.reservationProcessId()) || !holdId.equals(evento.holdId())
+                || !vencimientoHold.isAfter(ahora) || !evento.solicitud().expiresAt().isAfter(ahora)) { return this; }
+        Instant limite = evento.solicitud().expiresAt().truncatedTo(java.time.temporal.ChronoUnit.MICROS);
+        if (!limite.isAfter(ahora)) { return this; }
+        return registrarConfirmacion(limite, ahora.isBefore(actualizadoEn) ? actualizadoEn : ahora);
+    }
+
+    public boolean confirmacionPendienteDeEvidencia() {
+        return estado == EstadoProcesoReserva.CONFIRMACION_SOLICITADA || estado == EstadoProcesoReserva.CONFIRMACION_INCIERTA;
     }
 
     /** La aceptación persistida no implica que todavía se pueda enviar información adicional. */

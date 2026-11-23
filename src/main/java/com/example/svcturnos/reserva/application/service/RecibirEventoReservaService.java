@@ -21,7 +21,9 @@ public class RecibirEventoReservaService implements RecibirEventoReservaUseCase 
     @Override
     public EventoInbox recibir(RecepcionEventoReserva recepcion) {
         var guardado = inbox.conservar(recepcion);
-        if (guardado.pendienteDeCorrelacion()) { return correlacionar.correlacionar(guardado.id()); }
+        if (guardado.pendienteDeCorrelacion() || guardado.estado() == EstadoEventoReserva.SOLICITUD_REGISTRADA) {
+            return correlacionar.correlacionar(guardado.id());
+        }
         // Una reentrega en otra posición puede recuperar la correlación pendiente del original.
         if (guardado.originalId() != null && guardado.estado() == EstadoEventoReserva.DUPLICADO) {
             correlacionar.correlacionar(guardado.originalId());
