@@ -135,7 +135,7 @@ class ProcesoReservaPersistenceIntegrationTest {
 
     @Test
     void migracionesEstanAplicadasSinCambiarUsuarios() {
-        assertEquals(9, jdbc.queryForObject("SELECT count(*) FROM flyway_schema_history WHERE success", Integer.class));
+        assertEquals(10, jdbc.queryForObject("SELECT count(*) FROM flyway_schema_history WHERE success", Integer.class));
         assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM usuarios WHERE id = ?", Integer.class, usuario));
     }
     @Test

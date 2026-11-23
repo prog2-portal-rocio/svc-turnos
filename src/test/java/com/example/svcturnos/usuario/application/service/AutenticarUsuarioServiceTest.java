@@ -99,4 +99,12 @@ class AutenticarUsuarioServiceTest {
 
         verifyNoInteractions(passwordHasher);
     }
+
+    @Test void usuarioPreexistenteConNombreIncompatibleConservaLoginSinCambiosPersonales() {
+        var anterior = new Usuario(7L, "rocio", "hash-guardado", "A", "P", "rocio@example.com", null, "es", true);
+        when(usuarios.buscarPorLogin("rocio")).thenReturn(Optional.of(anterior));
+        when(passwordHasher.matches("claveSegura123", "hash-guardado")).thenReturn(true);
+        assertEquals(anterior, service.autenticar("rocio", "claveSegura123"));
+        verify(usuarios, never()).guardar(any());
+    }
 }

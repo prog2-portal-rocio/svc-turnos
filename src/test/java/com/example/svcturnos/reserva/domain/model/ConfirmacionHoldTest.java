@@ -34,10 +34,17 @@ class ConfirmacionHoldTest {
         assertTrue(proceso.impideNuevoHold(ahora.plusSeconds(1000)));
     }
 
-    @ParameterizedTest @NullSource @ValueSource(strings = {"", " ", "A"})
+    @ParameterizedTest @NullSource @ValueSource(strings = {"", " ", "A", " A ", "\tA\t", "\u2003"})
     void nombreOApellidoInvalidosNoSeEnvian(String nombre) {
         assertThrows(IllegalArgumentException.class, () -> new PacienteReserva(7L, nombre, "Perez"));
         assertThrows(IllegalArgumentException.class, () -> new PacienteReserva(7L, "Juan", nombre));
+    }
+
+    @Test void pacienteNormalizaEspaciosSinCambiarLosDatosDeIdentidad() {
+        var paciente = new PacienteReserva(7L, "  María  José  ", "\tO'Neil-李\t");
+        assertEquals("María  José", paciente.patientFirstName());
+        assertEquals("O'Neil-李", paciente.patientLastName());
+        assertEquals("user-7", paciente.externalPatientId());
     }
 
     @Test void limitesContractualesDeNombresEIdentificador() {

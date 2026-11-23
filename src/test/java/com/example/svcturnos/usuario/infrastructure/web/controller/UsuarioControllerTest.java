@@ -7,6 +7,8 @@ import com.example.svcturnos.usuario.infrastructure.security.SecurityConfig;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
@@ -19,6 +21,9 @@ import java.util.stream.Stream;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.ArgumentMatchers.argThat;
+import tools.jackson.databind.json.JsonMapper;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
@@ -29,6 +34,9 @@ class UsuarioControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private JsonMapper json;
 
     @MockitoBean
     private RegistrarUsuarioUseCase registrarUsuarioUseCase;
@@ -125,5 +133,37 @@ class UsuarioControllerTest {
     void debeRechazarAccesoSinAutenticacion() throws Exception {
         mockMvc.perform(get("/api/privado"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    String conNombres(String nombre, String apellido) {
+        return REGISTRO_VALIDO.replace("\"Rocio\"", json.writeValueAsString(nombre))
+                .replace("\"Portal\"", json.writeValueAsString(apellido));
+    }
+
+    static Stream<Arguments> nombresInvalidos() {
+        return Stream.of(Arguments.of("A", "Perez"), Arguments.of("Juan", "P"), Arguments.of(" A ", "Perez"),
+                Arguments.of("Juan", " P "), Arguments.of("a".repeat(101), "Perez"), Arguments.of("Juan", "a".repeat(101)),
+                Arguments.of(null, "Perez"), Arguments.of("Juan", null), Arguments.of("", "Perez"),
+                Arguments.of("Juan", "\u2003"));
+    }
+
+    @ParameterizedTest @MethodSource("nombresInvalidos")
+    void nombresIncompatiblesDevuelven400AntesDelCasoDeUso(String nombre, String apellido) throws Exception {
+        mockMvc.perform(post("/api/register").contentType(MediaType.APPLICATION_JSON).content(conNombres(nombre, apellido)))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("DATOS_INVALIDOS"));
+        verifyNoInteractions(registrarUsuarioUseCase);
+    }
+
+    @ParameterizedTest @ValueSource(ints = {2, 50, 51, 100})
+    void longitudSeValidaDespuesDeRecortarEspacios(int longitud) throws Exception {
+        String nombre = "a".repeat(longitud);
+        String apellido = "b".repeat(longitud);
+        when(registrarUsuarioUseCase.registrar(any())).thenReturn(
+                new Usuario(1L, "rocio", "hash-generado", nombre, apellido, "rocio@example.com", null, "es", true));
+        mockMvc.perform(post("/api/register").contentType(MediaType.APPLICATION_JSON)
+                        .content(conNombres("  " + nombre + "  ", "\t" + apellido + "\t")))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.firstName").value(nombre))
+                .andExpect(jsonPath("$.lastName").value(apellido));
+        verify(registrarUsuarioUseCase).registrar(argThat(datos -> nombre.equals(datos.firstName()) && apellido.equals(datos.lastName())));
     }
 }

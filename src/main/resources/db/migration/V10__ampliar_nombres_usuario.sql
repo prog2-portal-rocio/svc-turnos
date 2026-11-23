@@ -1,0 +1,3 @@
+ALTER TABLE usuarios
+    ALTER COLUMN first_name TYPE VARCHAR(100),
+    ALTER COLUMN last_name TYPE VARCHAR(100);
