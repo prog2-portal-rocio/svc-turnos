@@ -113,11 +113,23 @@ class ConfirmacionHoldControllerTest {
         verifyNoInteractions(procesos, remoto);
     }
 
-    @ParameterizedTest @CsvSource({"A,Perez", "Juan,P", "'',Perez", "Juan,''"})
+    @ParameterizedTest @CsvSource({"A,Perez", "Juan,P", "'',Perez", "Juan,''", "' A ',Perez", "Juan,' P '"})
     void nombresInvalidosNoProvocanPost(String nombre, String apellido) throws Exception {
         when(usuarios.buscarPorLogin("prueba")).thenReturn(Optional.of(usuario(7L, true, nombre, apellido)));
-        mvc.perform(post(URL).header("Authorization", "Bearer " + token(7L))).andExpect(status().isBadRequest());
-        verifyNoInteractions(procesos, remoto);
+        mvc.perform(post(URL).header("Authorization", "Bearer " + token(7L))).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("DATOS_INVALIDOS"));
+        verifyNoInteractions(procesos, remoto, inbox, correlacionar);
+        verify(usuarios, never()).guardar(any());
+    }
+
+    @Test void usuarioPreexistenteConEspaciosSeNormalizaSinModificarSuRegistro() throws Exception {
+        identidadYHold();
+        when(usuarios.buscarPorLogin("prueba")).thenReturn(Optional.of(usuario(7L, true, "  Juan  ", "\tPerez\t")));
+        when(remoto.confirmar(any(), any())).thenReturn(new ConfirmacionInicialAceptada("externo", ahora.plusSeconds(200)));
+        mvc.perform(post(URL).header("Authorization", "Bearer " + token(7L)))
+                .andExpect(status().isAccepted()).andExpect(jsonPath("$.estado").value("ESPERANDO_TELEFONO"));
+        verify(remoto).confirmar("hold", new PacienteReserva(7L, "Juan", "Perez"));
+        verify(usuarios, never()).guardar(any());
     }
 
     @Test void inexistenteDevuelve404() throws Exception {

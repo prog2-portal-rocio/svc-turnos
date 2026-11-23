@@ -1,5 +1,6 @@
 package com.example.svcturnos.usuario.infrastructure.web.dto;
 
+import com.example.svcturnos.shared.domain.model.NombrePersona;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -17,11 +18,11 @@ public record RegistroRequest(
         String password,
 
         @NotBlank
-        @Size(max = 50)
+        @Size(min = NombrePersona.LONGITUD_MINIMA, max = NombrePersona.LONGITUD_MAXIMA)
         String firstName,
 
         @NotBlank
-        @Size(max = 50)
+        @Size(min = NombrePersona.LONGITUD_MINIMA, max = NombrePersona.LONGITUD_MAXIMA)
         String lastName,
 
         @NotBlank
@@ -35,4 +36,8 @@ public record RegistroRequest(
         @Size(min = 2, max = 10)
         String langKey
 ) {
+    public RegistroRequest {
+        firstName = NombrePersona.normalizar(firstName);
+        lastName = NombrePersona.normalizar(lastName);
+    }
 }

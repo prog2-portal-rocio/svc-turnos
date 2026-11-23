@@ -3,7 +3,9 @@ package com.example.svcturnos.usuario.infrastructure.security;
 import com.example.svcturnos.usuario.domain.ports.in.RegistrarUsuarioUseCase;
 import com.example.svcturnos.usuario.domain.ports.out.PasswordHasherPort;
 import com.example.svcturnos.usuario.domain.ports.out.UsuarioPersistencePort;
+import com.example.svcturnos.reserva.domain.model.PacienteReserva;
 import jakarta.persistence.EntityManager;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -120,6 +122,44 @@ class Argon2idAutenticacionIntegrationTest {
                 .andExpect(status().isBadRequest());
 
         assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM usuarios", Integer.class));
+    }
+
+    @ParameterizedTest @ValueSource(ints = {2, 51, 100})
+    void nombresContractualesSePersistenNormalizadosYSirvenComoPaciente(int longitud) throws Exception {
+        String nombre = "a".repeat(longitud);
+        String apellido = "b".repeat(longitud);
+        var solicitud = json.writeValueAsString(Map.of("login", "usuario-prueba", "password", "ClaveCorrecta123",
+                "firstName", "  " + nombre + "  ", "lastName", "\t" + apellido + "\t", "email", "prueba@example.com", "langKey", "es"));
+        mockMvc.perform(post("/api/register").contentType(MediaType.APPLICATION_JSON).content(solicitud))
+                .andExpect(status().isCreated());
+        entityManager.flush();
+        entityManager.clear();
+        var registrado = usuarios.buscarPorLogin("usuario-prueba").orElseThrow();
+        assertEquals(nombre, registrado.firstName());
+        assertEquals(apellido, registrado.lastName());
+        var paciente = new PacienteReserva(registrado.id(), registrado.firstName(), registrado.lastName());
+        assertEquals(nombre, paciente.patientFirstName());
+        assertEquals(apellido, paciente.patientLastName());
+    }
+
+    @Test void migracionDesdeV9AmpliaColumnasSinCambiarUsuariosPreexistentes() {
+        var configuracion = org.flywaydb.core.Flyway.configure().dataSource(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())
+                .schemas("upgrade_v9_nombres").defaultSchema("upgrade_v9_nombres");
+        var versionAnterior = configuracion.target("9").load();
+        versionAnterior.migrate();
+        var aislada = new JdbcTemplate(versionAnterior.getConfiguration().getDataSource());
+        aislada.update("""
+                INSERT INTO upgrade_v9_nombres.usuarios(login,password_hash,first_name,last_name,email)
+                VALUES ('previo','hash-prueba','A','P','previo@test.invalid')
+                """);
+        var anterior = aislada.queryForMap("SELECT * FROM upgrade_v9_nombres.usuarios WHERE login='previo'");
+        configuracion.target(org.flywaydb.core.api.MigrationVersion.LATEST).load().migrate();
+        assertEquals(anterior, aislada.queryForMap("SELECT * FROM upgrade_v9_nombres.usuarios WHERE login='previo'"));
+        assertEquals(java.util.List.of(100, 100), aislada.queryForList("""
+                SELECT character_maximum_length FROM information_schema.columns
+                WHERE table_schema='upgrade_v9_nombres' AND table_name='usuarios'
+                    AND column_name IN ('first_name','last_name') ORDER BY column_name
+                """, Integer.class));
     }
 
     private String registro(String password) {

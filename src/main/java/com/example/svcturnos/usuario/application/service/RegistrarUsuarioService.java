@@ -7,6 +7,7 @@ import com.example.svcturnos.usuario.domain.ports.out.UsuarioPersistencePort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.example.svcturnos.usuario.application.exception.UsuarioDuplicadoException;
+import com.example.svcturnos.shared.domain.model.NombrePersona;
 
 import java.util.Locale;
 import java.util.Objects;
@@ -40,6 +41,8 @@ public class RegistrarUsuarioService implements RegistrarUsuarioUseCase {
 
         String login = datos.login().trim().toLowerCase(Locale.ROOT);
         String email = datos.email().trim().toLowerCase(Locale.ROOT);
+        var firstName = new NombrePersona(datos.firstName());
+        var lastName = new NombrePersona(datos.lastName());
 
         if (datos.password().length() < 4 || datos.password().length() > 100) {
             throw new IllegalArgumentException(
@@ -73,8 +76,8 @@ public class RegistrarUsuarioService implements RegistrarUsuarioUseCase {
                 null,
                 login,
                 passwordHash,
-                datos.firstName().trim(),
-                datos.lastName().trim(),
+                firstName.valor(),
+                lastName.valor(),
                 email,
                 datos.imageUrl(),
                 langKey,

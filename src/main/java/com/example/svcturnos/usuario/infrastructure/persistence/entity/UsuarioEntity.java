@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import com.example.svcturnos.usuario.domain.model.Usuario;
+import com.example.svcturnos.shared.domain.model.NombrePersona;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import java.time.ZoneOffset;
@@ -27,10 +28,10 @@ public class UsuarioEntity {
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
-    @Column(name = "first_name", nullable = false, length = 50)
+    @Column(name = "first_name", nullable = false, length = NombrePersona.LONGITUD_MAXIMA)
     private String firstName;
 
-    @Column(name = "last_name", nullable = false, length = 50)
+    @Column(name = "last_name", nullable = false, length = NombrePersona.LONGITUD_MAXIMA)
     private String lastName;
 
     @Column(nullable = false, length = 254)
