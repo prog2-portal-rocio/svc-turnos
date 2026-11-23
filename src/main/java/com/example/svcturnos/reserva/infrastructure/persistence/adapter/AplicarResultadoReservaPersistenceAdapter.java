@@ -116,13 +116,14 @@ public class AplicarResultadoReservaPersistenceAdapter implements AplicarResulta
     }
 
     private boolean pendiente(EventoInbox evento) {
-        return evento.evento() != null && evento.evento().esResultado() && (evento.pendienteDeCorrelacion() || evento.estado() == PENDIENTE_TIPO);
+        return evento.evento() != null && evento.evento().esResultado()
+                && (evento.pendienteDeCorrelacion() || evento.estado() == PENDIENTE_TIPO || evento.estado() == REQUIERE_RECONCILIACION);
     }
 
     private EventoInbox marcar(Long id, EstadoEventoReserva estado, Long proceso) {
         jdbc.update("""
                 UPDATE eventos_reserva_inbox SET estado=?,proceso_local_id=?
-                WHERE id=? AND canonico AND estado IN ('RECIBIDO','PENDIENTE_CORRELACION','PENDIENTE_TIPO')
+                WHERE id=? AND canonico AND estado IN ('RECIBIDO','PENDIENTE_CORRELACION','PENDIENTE_TIPO','REQUIERE_RECONCILIACION')
                 """, estado.name(), proceso, id);
         return inbox.buscarPorId(id).orElseThrow();
     }

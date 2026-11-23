@@ -15,11 +15,16 @@ public class ResultadosReservaScheduler {
     private static final Logger LOG = LoggerFactory.getLogger(ResultadosReservaScheduler.class);
     private final RecuperarResultadosReservaService servicio;
     private long cursor;
+    private long hasta;
     public ResultadosReservaScheduler(RecuperarResultadosReservaService servicio) { this.servicio = servicio; }
     @Scheduled(fixedDelayString = "${turnos.kafka.results-poll-interval:5000}",
             initialDelayString = "${turnos.kafka.results-initial-delay:0}")
     public void recuperar() {
-        try { cursor = servicio.recuperar(cursor, 100); }
+        try {
+            if (hasta == 0) { hasta = servicio.ultimoIdPendiente(); }
+            cursor = servicio.recuperar(cursor, hasta, 100);
+            if (cursor == 0) { hasta = 0; }
+        }
         catch (RuntimeException _) { LOG.warn("No se pudo recuperar el lote de resultados; los eventos permanecen en la inbox"); }
     }
 }

@@ -143,8 +143,12 @@ class ResultadosReservaIntegrationTest {
         return outbox.registrar(local.id(),usuario.id(),pedido.id(),new Telefono(NUMERO),new DestinoInformacion(GRUPO,TOPIC));
     }
     void recuperarTodo() {
+        recuperarTodo(recuperar);
+    }
+    void recuperarTodo(RecuperarResultadosReservaService servicio) {
+        long hasta=servicio.ultimoIdPendiente();
         long cursor=0;
-        for (int i=0;i<10;i++) { cursor=recuperar.recuperar(cursor,100);if (cursor==0) { break; } }
+        do { cursor=servicio.recuperar(cursor,hasta,100); } while (cursor!=0);
     }
 
     @ParameterizedTest @CsvSource({"AppointmentConfirmed,CONFIRMADA", "AdditionalInformationRejected,ESPERANDO_TELEFONO",
@@ -197,7 +201,12 @@ class ResultadosReservaIntegrationTest {
     @ParameterizedTest @ValueSource(strings={EXPIRACION,INVALIDEZ})
     void cierreNoSeReabrePorConfirmacionTardia(String cierre) {
         recibirDirecto(evento(cierre));reloj.ahora.set(AHORA.plusSeconds(2));
-        assertEquals(EstadoEventoReserva.REQUIERE_RECONCILIACION,recibirDirecto(evento(CONFIRMACION)).estado());
+        var pendiente=recibirDirecto(evento(CONFIRMACION));
+        assertEquals(EstadoEventoReserva.REQUIERE_RECONCILIACION,pendiente.estado());
+        var antes=procesos.buscarPorId(local.id()).orElseThrow();
+        recuperarTodo();
+        assertEquals(EstadoEventoReserva.REQUIERE_RECONCILIACION,inbox.buscarPorId(pendiente.id()).orElseThrow().estado());
+        assertEquals(antes,procesos.buscarPorId(local.id()).orElseThrow());
         assertNotEquals(EstadoProcesoReserva.CONFIRMADA,procesos.buscarPorId(local.id()).orElseThrow().estado());
     }
     @ParameterizedTest @ValueSource(strings={"groupId","holdId","professionalId","date","startTime"})
@@ -224,8 +233,83 @@ class ResultadosReservaIntegrationTest {
         var pendiente=recibirDirecto(body);assertEquals(EstadoEventoReserva.PENDIENTE_CORRELACION,pendiente.estado());
         var nuevo=crearProceso(externo,usuario.id());crearPedido(request,nuevo);
         var reiniciado=new RecuperarResultadosReservaService(inbox,new ProcesarResultadoReservaService(aplicar));
-        reiniciado.recuperar(0,100);
+        recuperarTodo(reiniciado);
         assertEquals(EstadoProcesoReserva.CONFIRMADA,procesos.buscarPorId(nuevo.id()).orElseThrow().estado());
+    }
+
+    @Test void resultadoEnReconciliacionSeReevaluaTrasReinicioSinOtraEntrega() {
+        var body=evento(CONFIRMACION);
+        var guardado=inbox.conservar(decoder.decodificar(mensaje(body.toString(),local.procesoExternoId(),OFFSET.incrementAndGet())));
+        jdbc.update("UPDATE eventos_reserva_inbox SET estado='REQUIERE_RECONCILIACION' WHERE id=?",guardado.id());
+        var reiniciado=new RecuperarResultadosReservaService(inbox,new ProcesarResultadoReservaService(aplicar));
+        recuperarTodo(reiniciado);
+        var confirmado=procesos.buscarPorId(local.id()).orElseThrow();
+        assertEquals(EstadoProcesoReserva.CONFIRMADA,confirmado.estado());
+        assertEquals(reservaExterna,confirmado.reservaId());
+        assertEquals(EstadoEventoReserva.RESULTADO_APLICADO,inbox.buscarPorId(guardado.id()).orElseThrow().estado());
+        recuperarTodo(reiniciado);
+        recibirDirecto(body);
+        assertEquals(confirmado,procesos.buscarPorId(local.id()).orElseThrow());
+    }
+
+    @Test void contradiccionAnteriorSeVuelveObsoletaSinRevertirUnaCancelacionPosterior() {
+        recibirDirecto(evento(CONFIRMACION));
+        var antigua=evento(CANCELACION);antigua.put("occurredAt",AHORA.minusSeconds(1).toString());
+        var pendiente=recibirDirecto(antigua);
+        assertEquals(EstadoEventoReserva.REQUIERE_RECONCILIACION,pendiente.estado());
+        reloj.ahora.set(AHORA.plusSeconds(1));
+        assertEquals(EstadoEventoReserva.RESULTADO_APLICADO,recibirDirecto(evento(CANCELACION)).estado());
+        var cancelado=procesos.buscarPorId(local.id()).orElseThrow();
+        recuperarTodo();
+        assertEquals(EstadoEventoReserva.RESULTADO_OBSOLETO,inbox.buscarPorId(pendiente.id()).orElseThrow().estado());
+        assertEquals(cancelado,procesos.buscarPorId(local.id()).orElseThrow());
+    }
+
+    @Test void masDeUnLoteDeResultadosSeProcesaSinReentregasNiAplicacionesDuplicadas() {
+        List<Long> ids=new ArrayList<>();
+        for (int i=0;i<105;i++) {
+            var body=evento(CONFIRMACION);
+            ids.add(inbox.conservar(decoder.decodificar(mensaje(body.toString(),local.procesoExternoId(),OFFSET.incrementAndGet()))).id());
+        }
+        recuperarTodo();
+        assertEquals(EstadoProcesoReserva.CONFIRMADA,procesos.buscarPorId(local.id()).orElseThrow().estado());
+        assertEquals(1L,procesos.buscarPorId(local.id()).orElseThrow().version());
+        for (var id:ids) {
+            assertTrue(Set.of(EstadoEventoReserva.RESULTADO_APLICADO,EstadoEventoReserva.RESULTADO_OBSOLETO)
+                    .contains(inbox.buscarPorId(id).orElseThrow().estado()));
+        }
+    }
+
+    @Test void falloIntermedioRevierteSoloUnEventoYLosDemasAvanzan() {
+        var envio=responder();
+        var body=evento(CONFIRMACION);
+        var fallido=inbox.conservar(decoder.decodificar(mensaje(body.toString(),local.procesoExternoId(),OFFSET.incrementAndGet())));
+        var otro=crearProceso(UUID.randomUUID().toString(),usuario.id());
+        var otraSolicitud=crearPedido(UUID.randomUUID().toString(),otro);
+        var siguiente=resultado(CONFIRMACION,UUID.randomUUID().toString(),otro.procesoExternoId(),otro.holdId(),
+                otraSolicitud.evento().eventId(),AHORA);
+        siguiente.put("reservationId",10000+otro.id());
+        var valido=inbox.conservar(decoder.decodificar(mensaje(siguiente.toString(),otro.procesoExternoId(),OFFSET.incrementAndGet())));
+        jdbc.execute("""
+                CREATE OR REPLACE FUNCTION fallo_recuperacion_resultado() RETURNS trigger AS $$
+                BEGIN IF NEW.estado='RESULTADO_APLICADO' THEN RAISE EXCEPTION 'fallo simulado'; END IF; RETURN NEW; END; $$ LANGUAGE plpgsql
+                """);
+        String trigger="fallo_recuperacion_"+fallido.id();
+        jdbc.execute("CREATE TRIGGER "+trigger+" BEFORE UPDATE ON eventos_reserva_inbox FOR EACH ROW WHEN (NEW.id="
+                +fallido.id()+") EXECUTE FUNCTION fallo_recuperacion_resultado()");
+        try {
+            recuperarTodo();
+            assertEquals(local,procesos.buscarPorId(local.id()).orElseThrow());
+            assertEquals(EstadoEventoReserva.RECIBIDO,inbox.buscarPorId(fallido.id()).orElseThrow().estado());
+            assertEquals(EstadoEventoReserva.RESULTADO_APLICADO,inbox.buscarPorId(valido.id()).orElseThrow().estado());
+            assertTrue(jdbc.queryForObject("SELECT habilitada FROM informacion_adicional_outbox WHERE event_id=?",Boolean.class,envio.eventId()));
+        } finally { jdbc.execute("DROP TRIGGER "+trigger+" ON eventos_reserva_inbox"); }
+        var reiniciado=new RecuperarResultadosReservaService(inbox,new ProcesarResultadoReservaService(aplicar));
+        recuperarTodo(reiniciado);
+        assertEquals(EstadoEventoReserva.RESULTADO_APLICADO,inbox.buscarPorId(fallido.id()).orElseThrow().estado());
+        assertEquals(EstadoProcesoReserva.CONFIRMADA,procesos.buscarPorId(local.id()).orElseThrow().estado());
+        assertEquals(1L,procesos.buscarPorId(otro.id()).orElseThrow().version());
+        assertFalse(jdbc.queryForObject("SELECT habilitada FROM informacion_adicional_outbox WHERE event_id=?",Boolean.class,envio.eventId()));
     }
     @Test void resultadosHistoricosPendientesDeTipoSeInterpretanDesdeJsonOriginal() {
         var body=evento(CONFIRMACION);
