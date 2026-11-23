@@ -135,7 +135,8 @@ class ConfirmarHoldServiceTest {
 
     @Test void respuestaYaPersistidaNoRepitePostYSoloRecuperaCorrelacion() {
         when(procesos.buscarPorId(42L)).thenReturn(Optional.of(proceso(ESPERANDO_TELEFONO, ahora.plusSeconds(200))));
-        when(inbox.buscarPendientes(1000)).thenReturn(List.of(1L, 2L));
+        when(inbox.ultimoIdSolicitudPendiente("externo", "hold")).thenReturn(2L);
+        when(inbox.buscarSolicitudesPendientes("externo", "hold", 0, 2, 100)).thenReturn(List.of(1L, 2L));
         var evento = new EventoReserva("request-original", EventoReserva.TIPO_SOLICITUD_INFORMACION, "externo", "hold", ahora, 1,
                 new SolicitudInformacionAdicional("PHONE_NUMBER", "Ingrese telefono", ahora.plusSeconds(200)));
         when(inbox.buscarPorId(1L)).thenReturn(Optional.of(new EventoInbox(1L, evento, EstadoEventoReserva.PENDIENTE_CORRELACION, null, null)));
@@ -147,10 +148,62 @@ class ConfirmarHoldServiceTest {
 
     @Test void falloDeInboxNoDeshaceAceptacionNiPermiteReenviar() {
         when(procesos.buscarPorId(42L)).thenReturn(Optional.of(proceso(ESPERANDO_TELEFONO, ahora.plusSeconds(200))));
-        when(inbox.buscarPendientes(1000)).thenThrow(new IllegalStateException());
+        when(inbox.ultimoIdSolicitudPendiente("externo", "hold")).thenThrow(new IllegalStateException());
         var error = assertThrows(ConfirmarHoldException.class, () -> servicio.confirmar(42L));
         assertEquals(ConfirmarHoldException.Motivo.CORRELACION_PENDIENTE, error.getMotivo());
         verifyNoInteractions(remoto);
+    }
+
+    @Test void recorreTodosLosLotesDirigidosConCursorSinLimiteGlobal() {
+        when(procesos.buscarPorId(42L)).thenReturn(Optional.of(proceso(ESPERANDO_TELEFONO, ahora.plusSeconds(200))));
+        when(inbox.ultimoIdSolicitudPendiente("externo", "hold")).thenReturn(205L);
+        when(inbox.buscarSolicitudesPendientes(eq("externo"), eq("hold"), anyLong(), eq(205L), eq(100)))
+                .thenAnswer(invocation -> {
+                    long desde = invocation.getArgument(2);
+                    return java.util.stream.LongStream.rangeClosed(desde + 1, Math.min(desde + 100, 205)).boxed().toList();
+                });
+        when(inbox.buscarPorId(anyLong())).thenAnswer(invocation -> Optional.of(pendiente(invocation.getArgument(0), "externo", "hold")));
+        assertEquals(ESPERANDO_TELEFONO, servicio.confirmar(42L).estado());
+        verify(inbox).buscarSolicitudesPendientes("externo", "hold", 0, 205, 100);
+        verify(inbox).buscarSolicitudesPendientes("externo", "hold", 100, 205, 100);
+        verify(inbox).buscarSolicitudesPendientes("externo", "hold", 200, 205, 100);
+        verify(inbox, times(1)).ultimoIdSolicitudPendiente("externo", "hold");
+        verify(correlacionar, times(205)).correlacionar(anyLong());
+        verifyNoInteractions(remoto);
+    }
+
+    EventoInbox pendiente(Long id, String externo, String holdId) {
+        var evento = new EventoReserva("request-" + id, EventoReserva.TIPO_SOLICITUD_INFORMACION, externo, holdId, ahora, 1,
+                new SolicitudInformacionAdicional("PHONE_NUMBER", "Ingrese telefono", ahora.plusSeconds(100)));
+        return new EventoInbox(id, evento, EstadoEventoReserva.PENDIENTE_CORRELACION, null, null);
+    }
+
+    @Test void noCorrelacionaIdentificadoresAjenosAunqueElPuertoLosDevuelva() {
+        when(procesos.buscarPorId(42L)).thenReturn(Optional.of(proceso(ESPERANDO_TELEFONO, ahora.plusSeconds(200))));
+        when(inbox.ultimoIdSolicitudPendiente("externo", "hold")).thenReturn(2L);
+        when(inbox.buscarSolicitudesPendientes("externo", "hold", 0, 2, 100)).thenReturn(List.of(1L, 2L));
+        when(inbox.buscarPorId(1L)).thenReturn(Optional.of(pendiente(1L, "externo", "hold-ajeno")));
+        when(inbox.buscarPorId(2L)).thenReturn(Optional.of(pendiente(2L, "externo-ajeno", "hold")));
+        assertEquals(ESPERANDO_TELEFONO, servicio.confirmar(42L).estado());
+        verifyNoInteractions(correlacionar, remoto);
+    }
+
+    @Test void loteVacioPorCorrelacionConcurrenteFinalizaElRecorrido() {
+        when(procesos.buscarPorId(42L)).thenReturn(Optional.of(proceso(ESPERANDO_TELEFONO, ahora.plusSeconds(200))));
+        when(inbox.ultimoIdSolicitudPendiente("externo", "hold")).thenReturn(10L);
+        when(inbox.buscarSolicitudesPendientes("externo", "hold", 0, 10, 100)).thenReturn(List.of());
+        assertEquals(ESPERANDO_TELEFONO, servicio.confirmar(42L).estado());
+        verify(inbox, times(1)).buscarSolicitudesPendientes(anyString(), anyString(), anyLong(), anyLong(), anyInt());
+        verifyNoInteractions(correlacionar, remoto);
+    }
+
+    @Test void cursorSinAvanceNoProduceUnBucleInfinito() {
+        when(procesos.buscarPorId(42L)).thenReturn(Optional.of(proceso(ESPERANDO_TELEFONO, ahora.plusSeconds(200))));
+        when(inbox.ultimoIdSolicitudPendiente("externo", "hold")).thenReturn(10L);
+        when(inbox.buscarSolicitudesPendientes("externo", "hold", 0, 10, 100)).thenReturn(List.of(0L));
+        var error = assertThrows(ConfirmarHoldException.class, () -> servicio.confirmar(42L));
+        assertEquals(ConfirmarHoldException.Motivo.CORRELACION_PENDIENTE, error.getMotivo());
+        verifyNoInteractions(correlacionar, remoto);
     }
 
     @Test void rechazoPrevioPermiteReintentoExplicitoMientrasSigaVigente() {

@@ -21,6 +21,12 @@ import tools.jackson.databind.json.JsonMapper;
 @Transactional(readOnly = true)
 public class InboxReservasPersistenceAdapter implements InboxReservasPort {
     private static final String PARAMETRO_ESTADO = "estado";
+    private static final String SOLICITUD_PENDIENTE = """
+            FROM eventos_reserva_inbox WHERE canonico
+                AND event_type='AdditionalInformationRequested'
+                AND proceso_externo_id=:externo AND hold_id=:hold
+                AND estado IN ('RECIBIDO','PENDIENTE_CORRELACION')
+            """;
     private static final String INSERTAR = """
             INSERT INTO eventos_reserva_inbox(topic,particion,offset_mensaje,clave,contenido,payload_json,event_id,event_id_hash,event_type,
                 proceso_externo_id,hold_id,occurred_at,schema_version,required_field,mensaje,expires_at,canonico,estado,motivo,original_id)
@@ -114,11 +120,27 @@ public class InboxReservasPersistenceAdapter implements InboxReservasPort {
     }
 
     @Override
-    public List<Long> buscarPendientes(int limite) {
-        if (limite < 1 || limite > 1000) { throw new IllegalArgumentException("Límite de consulta entre 1 y 1000"); }
-        return jdbc.queryForList("""
-                SELECT id FROM eventos_reserva_inbox WHERE estado IN ('RECIBIDO','PENDIENTE_CORRELACION') ORDER BY id LIMIT :limite
-                """, new MapSqlParameterSource("limite", limite), Long.class);
+    public long ultimoIdSolicitudPendiente(String procesoExternoId, String holdId) {
+        return jdbc.queryForObject("SELECT COALESCE(MAX(id),0) " + SOLICITUD_PENDIENTE,
+                identificadoresSolicitud(procesoExternoId, holdId), Long.class);
+    }
+
+    @Override
+    public List<Long> buscarSolicitudesPendientes(String procesoExternoId, String holdId, long despuesDeId, long hastaId, int limite) {
+        if (despuesDeId < 0 || hastaId < despuesDeId || limite < 1 || limite > 1000) {
+            throw new IllegalArgumentException("Lote de solicitudes inválido");
+        }
+        return jdbc.queryForList("SELECT id " + SOLICITUD_PENDIENTE
+                + " AND id>:desde AND id<=:hasta ORDER BY id LIMIT :limite",
+                identificadoresSolicitud(procesoExternoId, holdId).addValue("desde", despuesDeId)
+                        .addValue("hasta", hastaId).addValue("limite", limite), Long.class);
+    }
+
+    private MapSqlParameterSource identificadoresSolicitud(String procesoExternoId, String holdId) {
+        if (procesoExternoId == null || procesoExternoId.isBlank() || holdId == null || holdId.isBlank()) {
+            throw new IllegalArgumentException("Identificadores de solicitud obligatorios");
+        }
+        return new MapSqlParameterSource("externo", procesoExternoId).addValue("hold", holdId);
     }
 
     @Override

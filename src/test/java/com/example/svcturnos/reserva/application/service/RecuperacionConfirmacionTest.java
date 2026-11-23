@@ -63,6 +63,16 @@ class RecuperacionConfirmacionTest {
         when(inbox.buscarPorId(anyLong())).thenAnswer(invocation -> Optional.ofNullable(mensajes.get(invocation.getArgument(0))));
         when(inbox.buscarSolicitudesPorProceso(42L)).thenAnswer(invocation -> mensajes.values().stream()
                 .filter(m -> m.estado() == EstadoEventoReserva.SOLICITUD_REGISTRADA).toList());
+        when(inbox.ultimoIdSolicitudPendiente(anyString(), anyString())).thenAnswer(invocation -> mensajes.values().stream()
+                .filter(m -> pendientePara(m, invocation.getArgument(0), invocation.getArgument(1)))
+                .mapToLong(EventoInbox::id).max().orElse(0));
+        when(inbox.buscarSolicitudesPendientes(anyString(), anyString(), anyLong(), anyLong(), anyInt())).thenAnswer(invocation -> {
+            long desde = invocation.getArgument(2);
+            long hasta = invocation.getArgument(3);
+            int limite = invocation.getArgument(4);
+            return mensajes.values().stream().filter(m -> pendientePara(m, invocation.getArgument(0), invocation.getArgument(1)))
+                    .map(EventoInbox::id).filter(id -> id > desde && id <= hasta).sorted().limit(limite).toList();
+        });
         when(inbox.registrarCorrelacion(anyLong(), any())).thenAnswer(invocation -> {
             Long id = invocation.getArgument(0);
             CorrelacionEvento correlacion = invocation.getArgument(1);
@@ -77,6 +87,18 @@ class RecuperacionConfirmacionTest {
         var base = proceso();
         return new ProcesoReserva(base.id(), base.usuarioId(), base.profesionalId(), base.fecha(), base.hora(), estado,
                 base.holdId(), base.procesoExternoId(), base.vencimientoHold(), AHORA.minusSeconds(60), AHORA, 1L);
+    }
+
+    boolean pendientePara(EventoInbox mensaje, String externo, String hold) {
+        var evento = mensaje.evento();
+        return mensaje.pendienteDeCorrelacion() && mensaje.originalId() == null && evento != null
+                && evento.esSolicitudInformacion() && externo.equals(evento.reservationProcessId()) && hold.equals(evento.holdId());
+    }
+
+    EventoInbox pendiente(Long id, String externo, String hold) {
+        var base = solicitud().evento();
+        return new EventoInbox(id, new EventoReserva("request-" + id, base.eventType(), externo, hold, base.occurredAt(), 1, base.solicitud()),
+                EstadoEventoReserva.PENDIENTE_CORRELACION, null, null);
     }
 
     EventoInbox recibirSolicitud() {
@@ -186,6 +208,52 @@ class RecuperacionConfirmacionTest {
                 .when(procesos).guardar(any());
         assertEquals(confirmado, recuperacion.recuperar(incierto));
         assertEquals(CONFIRMADA, almacen.get().estado());
+        verifyNoInteractions(remoto);
+    }
+
+    @ParameterizedTest @EnumSource(value = EstadoProcesoReserva.class,
+            names = {"CONFIRMACION_INCIERTA", "CONFIRMACION_SOLICITADA", "ESPERANDO_TELEFONO"})
+    void recuperaSolicitudAdelantadaAunqueHayaMasDeMilPendientesAjenos(EstadoProcesoReserva estado) {
+        almacen.set(conEstado(estado));
+        for (long id = 1; id <= 1100; id++) { mensajes.put(id, pendiente(id, "otro-" + id, "otro-hold")); }
+        mensajes.put(1101L, pendiente(1101L, "externo", "hold-ajeno"));
+        mensajes.put(1102L, pendiente(1102L, "externo-ajeno", "hold"));
+        mensajes.put(1103L, pendiente(1103L, "externo", "hold"));
+        var recuperado = confirmador().confirmar(42L);
+        assertEquals(ESPERANDO_TELEFONO, recuperado.estado());
+        var evidencia = mensajes.get(1103L);
+        assertEquals(EstadoEventoReserva.SOLICITUD_REGISTRADA, evidencia.estado());
+        assertEquals(42L, evidencia.procesoLocalId());
+        assertEquals(evidencia.evento().solicitud().expiresAt(), SolicitudEnvioInformacion.validar(recuperado, 7L, evidencia, AHORA));
+        assertEquals(1102, mensajes.values().stream().filter(EventoInbox::pendienteDeCorrelacion).count());
+        verify(inbox).buscarSolicitudesPendientes("externo", "hold", 0, 1103, 100);
+        verify(inbox, never()).registrarCorrelacion(eq(1101L), any());
+        verify(inbox, never()).registrarCorrelacion(eq(1102L), any());
+        verifyNoInteractions(remoto);
+    }
+
+    @Test void identidadAmbiguaNoSeRecuperaAunqueSeEncuentreLaSolicitud() {
+        almacen.set(conEstado(CONFIRMACION_INCIERTA));
+        mensajes.put(10L, pendiente(10L, "externo", "hold"));
+        when(procesos.buscarPorProcesoExternoId("externo")).thenReturn(List.of(almacen.get(), almacen.get()));
+        var servicio = confirmador();
+        assertThrows(ConfirmarHoldException.class, () -> servicio.confirmar(42L));
+        assertEquals(EstadoEventoReserva.CORRELACION_INCONSISTENTE, mensajes.get(10L).estado());
+        assertEquals(CONFIRMACION_INCIERTA, almacen.get().estado());
+        verify(procesos, never()).guardar(any());
+        verifyNoInteractions(remoto);
+    }
+
+    @Test void solicitudPendienteVencidaNoRecuperaIncertidumbre() {
+        almacen.set(conEstado(CONFIRMACION_INCIERTA));
+        var base = pendiente(10L, "externo", "hold").evento();
+        var vencido = new EventoReserva(base.eventId(), base.eventType(), base.reservationProcessId(), base.holdId(), AHORA, 1,
+                new SolicitudInformacionAdicional("PHONE_NUMBER", "Ingrese telefono", AHORA));
+        mensajes.put(10L, new EventoInbox(10L, vencido, EstadoEventoReserva.PENDIENTE_CORRELACION, null, null));
+        var servicio = confirmador();
+        assertThrows(ConfirmarHoldException.class, () -> servicio.confirmar(42L));
+        assertEquals(CONFIRMACION_INCIERTA, almacen.get().estado());
+        verify(procesos, never()).guardar(any());
         verifyNoInteractions(remoto);
     }
 }

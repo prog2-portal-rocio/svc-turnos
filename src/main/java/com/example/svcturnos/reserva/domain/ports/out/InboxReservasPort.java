@@ -10,6 +10,9 @@ public interface InboxReservasPort {
     Optional<MensajeReserva> buscarMensajePorId(Long id);
     List<EventoInbox> buscarSolicitudesPorProceso(Long procesoId);
     List<Long> buscarResultadosPendientes(long despuesDeId, int limite);
-    List<Long> buscarPendientes(int limite);
+    /** Techo fijo del recorrido dirigido; cero si no hay solicitudes pendientes. */
+    long ultimoIdSolicitudPendiente(String procesoExternoId, String holdId);
+    /** Solo solicitudes canónicas pendientes, ordenadas por ID; no usa offsets sobre filas que cambian de estado. */
+    List<Long> buscarSolicitudesPendientes(String procesoExternoId, String holdId, long despuesDeId, long hastaId, int limite);
     EventoInbox registrarCorrelacion(Long id, CorrelacionEvento correlacion);
 }

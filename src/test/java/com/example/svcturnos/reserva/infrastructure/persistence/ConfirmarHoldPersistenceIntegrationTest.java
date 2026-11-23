@@ -205,6 +205,51 @@ class ConfirmarHoldPersistenceIntegrationTest {
         assertEquals(hold.id(), recuperado.procesoLocalId());
     }
 
+    @Test void masDeMilPendientesAjenosNoOcultanLaSolicitudDelProcesoIncierto() {
+        var intento = procesos.guardar(hold.solicitarConfirmacion(RELOJ.instant()));
+        procesos.guardar(intento.registrarResultadoConfirmacion(EstadoProcesoReserva.CONFIRMACION_INCIERTA, RELOJ.instant()));
+        String externoAjeno = "otro-" + UUID.randomUUID();
+        for (int i = 0; i < 1001; i++) {
+            inbox.conservar(decoder.decodificar(mensaje(solicitud(UUID.randomUUID().toString(), externoAjeno, "hold-ajeno"),
+                    externoAjeno, OFFSET.incrementAndGet())));
+        }
+        var json = solicitud(UUID.randomUUID().toString(), hold.procesoExternoId(), hold.holdId())
+                .replace("2026-09-10T14:44:50Z", RELOJ.instant().plusSeconds(200).toString())
+                .replace("2026-09-10T14:35:10Z", RELOJ.instant().toString());
+        var pendiente = inbox.conservar(decoder.decodificar(mensaje(json, hold.procesoExternoId(), OFFSET.incrementAndGet())));
+        assertEquals(List.of(pendiente.id()), inbox.buscarSolicitudesPendientes(hold.procesoExternoId(), hold.holdId(), 0,
+                inbox.ultimoIdSolicitudPendiente(hold.procesoExternoId(), hold.holdId()), 100));
+        assertTrue(inbox.buscarSolicitudesPendientes(hold.procesoExternoId(), "hold-ajeno", 0, pendiente.id(), 100).isEmpty());
+        assertEquals(EstadoProcesoReserva.ESPERANDO_TELEFONO, servicio.confirmar(procesoId).estado());
+        var correlacionado = inbox.buscarPorId(pendiente.id()).orElseThrow();
+        assertEquals(hold.id(), correlacionado.procesoLocalId());
+        assertEquals(EstadoEventoReserva.SOLICITUD_REGISTRADA, correlacionado.estado());
+        assertEquals(1001, jdbc.queryForObject("SELECT count(*) FROM eventos_reserva_inbox WHERE proceso_externo_id=? AND estado='RECIBIDO'",
+                Integer.class, externoAjeno));
+        var version = procesos.buscarPorId(procesoId).orElseThrow().version();
+        recibir.recibir(decoder.decodificar(mensaje(json, hold.procesoExternoId(), OFFSET.incrementAndGet())));
+        assertEquals(version, procesos.buscarPorId(procesoId).orElseThrow().version());
+        verifyNoInteractions(remoto);
+    }
+
+    @Test void consultaDirigidaAvanzaPorIdAunqueLasFilasAnterioresCambienDeEstado() {
+        String externo = "paginado-" + UUID.randomUUID();
+        String holdExterno = "hold-paginado";
+        List<Long> ids = new ArrayList<>();
+        for (int i = 0; i < 105; i++) {
+            ids.add(inbox.conservar(decoder.decodificar(mensaje(solicitud(UUID.randomUUID().toString(), externo, holdExterno),
+                    externo, OFFSET.incrementAndGet()))).id());
+        }
+        long hasta = inbox.ultimoIdSolicitudPendiente(externo, holdExterno);
+        var primero = inbox.buscarSolicitudesPendientes(externo, holdExterno, 0, hasta, 100);
+        assertEquals(ids.subList(0, 100), primero);
+        jdbc.update("UPDATE eventos_reserva_inbox SET estado='PENDIENTE_TIPO' WHERE proceso_externo_id=? AND id<=?", externo, primero.getLast());
+        var segundo = inbox.buscarSolicitudesPendientes(externo, holdExterno, primero.getLast(), hasta, 100);
+        assertEquals(ids.subList(100, 105), segundo);
+        assertTrue(inbox.buscarSolicitudesPendientes(externo, holdExterno, hasta, hasta, 100).isEmpty());
+        assertEquals(0L, inbox.ultimoIdSolicitudPendiente(externo, "hold-inexistente"));
+    }
+
     @ParameterizedTest @EnumSource(value = EstadoProcesoReserva.class, names = {"CONFIRMACION_SOLICITADA", "CONFIRMACION_INCIERTA", "ESPERANDO_TELEFONO"})
     void nuevoHoldEquivalenteSigueBloqueadoDuranteLaConfirmacion(EstadoProcesoReserva estado) {
         var anterior = procesos.guardar(hold.solicitarConfirmacion(RELOJ.instant()));

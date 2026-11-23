@@ -19,7 +19,7 @@ import static com.example.svcturnos.reserva.domain.model.EstadoProcesoReserva.HO
 
 @Service
 public class ConfirmarHoldService implements ConfirmarHoldUseCase {
-    private static final int LIMITE_CORRELACION = 1000;
+    private static final int TAMANO_LOTE_CORRELACION = 100;
     private final UsuarioAutenticadoPort usuario;
     private final ProcesoReservaPersistencePort procesos;
     private final ConfirmarHoldRemotoPort remoto;
@@ -64,7 +64,8 @@ public class ConfirmarHoldService implements ConfirmarHoldUseCase {
 
     private ProcesoReserva recuperarConfirmacion(ProcesoReserva proceso) {
         try {
-            return recuperacion.recuperar(proceso);
+            correlacionarPendientes(proceso);
+            return recuperacion.recuperar(buscar(proceso.id()));
         } catch (RuntimeException _) {
             throw new ConfirmarHoldException(PERSISTENCIA_FALLIDA, null, proceso.id());
         }
@@ -136,10 +137,7 @@ public class ConfirmarHoldService implements ConfirmarHoldUseCase {
 
     private ProcesoReserva recuperarCorrelacion(ProcesoReserva proceso) {
         try {
-            for (var id : inbox.buscarPendientes(LIMITE_CORRELACION)) {
-                var pendiente = inbox.buscarPorId(id);
-                if (pendiente.isPresent() && corresponde(pendiente.get(), proceso)) { correlacionar.correlacionar(id); }
-            }
+            correlacionarPendientes(proceso);
         } catch (RuntimeException _) {
             // El 202 ya quedó persistido. Un nuevo intento sólo recuperará la correlación local.
             throw new ConfirmarHoldException(CORRELACION_PENDIENTE, null, proceso.id());
@@ -151,10 +149,28 @@ public class ConfirmarHoldService implements ConfirmarHoldUseCase {
         return proceso;
     }
 
+    private void correlacionarPendientes(ProcesoReserva proceso) {
+        // Techo fijo por ejecución: nuevas recepciones no prolongan indefinidamente este recorrido.
+        long hasta = inbox.ultimoIdSolicitudPendiente(proceso.procesoExternoId(), proceso.holdId());
+        long desde = 0;
+        while (desde < hasta) {
+            var lote = inbox.buscarSolicitudesPendientes(proceso.procesoExternoId(), proceso.holdId(), desde, hasta, TAMANO_LOTE_CORRELACION);
+            if (lote.isEmpty()) { return; }
+            long siguiente = lote.getLast();
+            if (siguiente <= desde || siguiente > hasta) { throw new IllegalStateException("Cursor de correlación inválido"); }
+            for (var id : lote) {
+                var pendiente = inbox.buscarPorId(id);
+                if (pendiente.isPresent() && corresponde(pendiente.get(), proceso)) { correlacionar.correlacionar(id); }
+            }
+            desde = siguiente;
+        }
+    }
+
     private boolean corresponde(EventoInbox pendiente, ProcesoReserva proceso) {
         var evento = pendiente.evento();
         return evento != null && evento.esSolicitudInformacion()
-                && proceso.procesoExternoId().equals(evento.reservationProcessId());
+                && proceso.procesoExternoId().equals(evento.reservationProcessId())
+                && proceso.holdId().equals(evento.holdId());
     }
 
     private ProcesoReserva guardar(ProcesoReserva proceso) {
