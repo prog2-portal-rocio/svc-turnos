@@ -21,6 +21,12 @@ import tools.jackson.databind.json.JsonMapper;
 @Transactional(readOnly = true)
 public class InboxReservasPersistenceAdapter implements InboxReservasPort {
     private static final String PARAMETRO_ESTADO = "estado";
+    private static final String RESULTADO_PENDIENTE = """
+            FROM eventos_reserva_inbox WHERE canonico
+                AND estado IN ('RECIBIDO','PENDIENTE_CORRELACION','PENDIENTE_TIPO','REQUIERE_RECONCILIACION')
+                AND event_type IN ('AppointmentConfirmed','AdditionalInformationRejected','AppointmentProcessExpired',
+                    'AppointmentProcessInvalid','AppointmentCancelled')
+            """;
     private static final String SOLICITUD_PENDIENTE = """
             FROM eventos_reserva_inbox WHERE canonico
                 AND event_type='AdditionalInformationRequested'
@@ -109,14 +115,17 @@ public class InboxReservasPersistenceAdapter implements InboxReservasPort {
     }
 
     @Override
-    public List<Long> buscarResultadosPendientes(long despuesDeId, int limite) {
-        if (despuesDeId < 0 || limite < 1 || limite > 1000) { throw new IllegalArgumentException("Lote de resultados inválido"); }
-        return jdbc.queryForList("""
-                SELECT id FROM eventos_reserva_inbox WHERE canonico AND id>:desde
-                    AND estado IN ('RECIBIDO','PENDIENTE_CORRELACION','PENDIENTE_TIPO')
-                    AND event_type IN ('AppointmentConfirmed','AdditionalInformationRejected','AppointmentProcessExpired',
-                        'AppointmentProcessInvalid','AppointmentCancelled') ORDER BY id LIMIT :limite
-                """, new MapSqlParameterSource("desde", despuesDeId).addValue("limite", limite), Long.class);
+    public long ultimoIdResultadoPendiente() {
+        return jdbc.queryForObject("SELECT COALESCE(MAX(id),0) " + RESULTADO_PENDIENTE, new MapSqlParameterSource(), Long.class);
+    }
+
+    @Override
+    public List<Long> buscarResultadosPendientes(long despuesDeId, long hastaId, int limite) {
+        if (despuesDeId < 0 || hastaId < despuesDeId || limite < 1 || limite > 1000) {
+            throw new IllegalArgumentException("Lote de resultados inválido");
+        }
+        return jdbc.queryForList("SELECT id " + RESULTADO_PENDIENTE + " AND id>:desde AND id<=:hasta ORDER BY id LIMIT :limite",
+                new MapSqlParameterSource("desde", despuesDeId).addValue("hasta", hastaId).addValue("limite", limite), Long.class);
     }
 
     @Override
